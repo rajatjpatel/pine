@@ -1,0 +1,34 @@
+//@version=2
+//Creates bands based on Fibonacci numbers and the SMA.
+//Based on indicator by Big Mike on futures.io
+//How to trade
+//          Best to use in ranging market
+//			Place on two different time frames eg. 15 and 55 min.
+//			Take trades off either short or long term chart.
+//			Best trades occur when both charts show same trigger/condition.
+//			Trades are short term reversals in direction of major trend on longer term chart unless you expect a trend reversal.
+//			Determine which band is the limiting band for the volatility of the instrument.
+//			When the market closes outside of the limiting band then returns inside, take a long/short one tick above/below
+//			the high/low of the previous bar.
+//			Place stop below/above the low/high of the the recent swing low/high.
+//			Set targets at opposite band of chart with trailing stop after crossing middle band.
+study("Fib Bands", overlay=true)
+lenSMA=input(title="#bars back SMA", defval=50, type=integer)
+lenATR=input(title="#bars back ATR", defval=14, type=integer)
+firstFactor=input(title="factor fib. band 1", defval= 1.618, type=float)
+secondFactor=input(title="factor fib. band 2", defval= 2.618, type=float)
+thirdFactor=input(title="factor fib. band 3", defval= 4.236, type=float)
+vAtr = atr(lenATR)
+vSma = sma(close,lenSMA)
+fib1u=vSma + vAtr * firstFactor
+fib1l=vSma - vAtr * firstFactor
+fib2u=vSma + vAtr * secondFactor
+fib2l=vSma - vAtr * secondFactor
+fib3u=vSma + vAtr * thirdFactor
+fib3l=vSma - vAtr * thirdFactor
+plot(fib1u, color=white)
+plot(fib1l, color=white)
+plot(fib2u, color=green)
+plot(fib2l, color=red)
+plot(fib3u, color=green)
+plot(fib3l, color=red)

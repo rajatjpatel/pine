@@ -1,0 +1,100 @@
+//@version=3
+study("SSL", overlay=true)
+period=input(title="Period", defval=21)
+len=input(title="Period", defval=21)
+smaHigh=sma(high, len)
+smaLow=sma(low, len)
+Hlv = na
+Hlv := close > smaHigh ? 1 : close < smaLow ? -1 : Hlv[1]
+sslDown = Hlv < 0 ? smaHigh: smaLow
+sslUp   = Hlv < 0 ? smaLow : smaHigh
+
+plot(sslDown, linewidth=2, color=red)
+plot(sslUp, linewidth=2, color=lime)
+
+////////////////////////////////////////////
+//
+// @author LazyBear
+// List of all my indicators:
+// https://docs.google.com/document/d/15AGCufJZ8CIUvwFJ9W-IKns88gkWOKBCvByMEvm5MLo/edit?usp=sharing
+//
+
+// Modified for Crypto Market by ShayanKM
+
+study("Waddah Attar Explosion V2 [SHK]", shorttitle="WAE [SHK]")
+sensitivity = input(150, title="Sensitivity")
+fastLength=input(20, title="FastEMA Length")
+slowLength=input(40, title="SlowEMA Length")
+channelLength=input(20, title="BB Channel Length")
+mult=input(2.0, title="BB Stdev Multiplier")
+
+DEAD_ZONE = nz(rma(tr(true),100)) * 3.7
+
+calc_macd(source, fastLength, slowLength) =>
+	fastMA = ema(source, fastLength)
+	slowMA = ema(source, slowLength)
+	fastMA - slowMA
+
+calc_BBUpper(source, length, mult) =>
+	basis = sma(source, length)
+	dev = mult * stdev(source, length)
+	basis + dev
+
+calc_BBLower(source, length, mult) =>
+	basis = sma(source, length)
+	dev = mult * stdev(source, length)
+	basis - dev
+
+t1 = (calc_macd(close, fastLength, slowLength) - calc_macd(close[1], fastLength, slowLength))*sensitivity
+
+e1 = (calc_BBUpper(close, channelLength, mult) - calc_BBLower(close, channelLength, mult))
+
+trendUp = (t1 >= 0) ? t1 : 0
+trendDown = (t1 < 0) ? (-1*t1) : 0
+
+plot(trendUp, style=columns, linewidth=1, color=(trendUp<trendUp[1])?lime:green, transp=45, title="UpTrend")
+plot(trendDown, style=columns, linewidth=1, color=(trendDown<trendDown[1])?orange:red, transp=45, title="DownTrend")
+plot(e1, style=line, linewidth=2, color=#A0522D, title="ExplosionLine")
+plot(DEAD_ZONE, color=blue, linewidth=1, style=cross, title="DeadZoneLine")
+
+////////////////////////////////////
+//@version=3
+study("ATRB", overlay = true)
+
+// Inputs
+atrPeriod = input(title = "ATR Period", defval = 14, minval = 1)
+srcUpper = input(title = "Source Upper", type = source, defval = close)
+srcLower = input(title = "Source Lower", type = source, defval = close)
+atrMultiplierUpper = input(title = "ATR Multiplier Upper", defval = 1)
+atrMultiplierLower = input(title = "ATR Multiplier Lower", defval = 1)
+
+// ATR
+atr = atr(atrPeriod)
+
+// Plotting
+plot(srcUpper + atr * atrMultiplierUpper, color = green)
+plot(srcLower - atr * atrMultiplierLower, color = red)
+
+/////////////////////////////////////////////////
+//@version=5
+indicator(title="Moving Average Exponential", shorttitle="EMA", overlay=true, timeframe="", timeframe_gaps=true)
+len = input.int(9, minval=1, title="Length")
+src = input(close, title="Source")
+offset = input.int(title="Offset", defval=0, minval=-500, maxval=500)
+out = ta.ema(src, len)
+plot(out, title="EMA", color=color.blue, offset=offset)
+
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+typeMA = input.string(title = "Method", defval = "SMA", options=["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"], group="Smoothing")
+smoothingLength = input.int(title = "Length", defval = 5, minval = 1, maxval = 100, group="Smoothing")
+
+smoothingLine = ma(out, smoothingLength, typeMA)
+plot(smoothingLine, title="Smoothing Line", color=#f37f20, offset=offset, display=display.none)
+/////////////////////////////////////

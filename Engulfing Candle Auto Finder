@@ -1,0 +1,10 @@
+//@version=4
+study("Engulfing Candle Auto Finder", overlay = true)
+
+longengf = close[1] < open[1]
+shortengf = close[1] > open[1]
+longeng = close > open[1] and longengf
+shorteng = close < open[1] and shortengf
+
+plotshape(longeng, title = "Long Engulfing", style = shape.triangleup, location = location.belowbar, color = color.blue, size = size.tiny)
+plotshape(shorteng, title = "Short Engulfing", style = shape.triangledown, location = location.abovebar, color = color.red, size = size.tiny)

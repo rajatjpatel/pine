@@ -1,0 +1,31 @@
+//@version=4
+study("Altered True Strength Indicator", shorttitle="imbesTSI", format=format.price, precision=4, resolution="")
+long = input(title="Long Length", type=input.integer, defval=16)
+short = input(title="Short Length", type=input.integer, defval=10)
+signal = input(title="Signal Length", type=input.integer, defval=18)
+price = close
+double_smooth(src, long, short) =>
+	fist_smooth = ema(src, long)
+	ema(fist_smooth, short)
+pc = change(price)
+double_smoothed_pc = double_smooth(pc, long, short)
+double_smoothed_abs_pc = double_smooth(abs(pc), long, short)
+tsi_value = (double_smoothed_pc / double_smoothed_abs_pc)
+lagline=ema(tsi_value, signal)
+
+//Data Plots
+line1=plot(tsi_value, color=#3BB3E4, transp=20)
+line2=plot(ema(tsi_value, signal), color=#FF006E, transp=20)
+hline(0, title="Zero", color=color.white, linestyle=hline.style_dotted, editable=true)
+hline(.6, title="OverBought", color=color.green, linestyle=hline.style_solid, editable=true)
+hline(-.6, title="Oversold", color=color.red, linestyle=hline.style_solid,editable=true)
+
+//Background Colors Code
+ColorBG = input(title="Background Colors", type=input.bool, defval=true)
+BackgroundColor = (ColorBG and crossover(tsi_value, lagline) ? color.green : (ColorBG and crossover(lagline, tsi_value)) ? color.red : na)
+bgcolor(color=BackgroundColor, transp=87)
+
+//Cloud Fill
+CloudOn= input(title="TSI Cloud", type=input.bool, defval=true)
+CloudColor = CloudOn and tsi_value > lagline ? #3BB3E4 : (CloudOn and tsi_value <= lagline ? #FF006E : na)
+fill(line1, line2, color=CloudColor, transp=82)

@@ -1,0 +1,33 @@
+//@version=3
+//AUTHOR: KIVANC @fr3762 on twitter
+study("FIBONACCI BANDS",shorttitle="FBANDS",overlay=true)
+EMAperiod = input(14,title="EMAperiod",type=integer,minval=1,maxval=500)
+ATRperiod = input(14,title="ATRperiod",type=integer,minval=1,maxval=500)
+EMA=ema(close,EMAperiod)
+TR1=max((high - low), abs(high - close[1]))
+TR=max(TR1, abs(low - close[1]))
+ATR=sma(TR,ATRperiod)
+F2=input(defval=1.618,title="Fibonacci Ratio 2")
+F3=input(defval=2.618,title="Fibonacci Ratio 3")
+F4=input(defval=4.236,title="Fibonacci Ratio 4")
+R1=ATR
+R2=ATR*F2
+R3=ATR*F3
+R4=ATR*F4
+FIBOTOP4=EMA+R4
+FIBOTOP3=EMA+R3
+FIBOTOP2=EMA+R2
+FIBOTOP1=EMA+R1
+FIBOBOT1=EMA-R1
+FIBOBOT2=EMA-R2
+FIBOBOT3=EMA-R3
+FIBOBOT4=EMA-R4
+plot(FIBOTOP4,transp=0,title="FIBOTOP4",color=teal)
+plot(FIBOTOP3,transp=20,title="FIBOTOP3",color=teal)
+plot(FIBOTOP2,transp=40,title="FIBOTOP2",color=teal)
+plot(FIBOTOP1,transp=40,title="FIBOTOP1",color=teal)
+plot(FIBOBOT1,transp=40,title="FIBOBOT1",color=teal)
+plot(FIBOBOT2,transp=40,title="FIBOBOT2",color=teal)
+plot(FIBOBOT3,transp=20,title="FIBOBOT3",color=teal)
+plot(FIBOBOT4,transp=0,title="FIBOBOT4",color=teal)
+plot(EMA,style=cross,title="EMA",color=teal)

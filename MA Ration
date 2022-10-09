@@ -1,0 +1,31 @@
+//@version=5
+indicator("MA Ratings", overlay = true)
+
+TRANSP = 80
+TABLE_WIDTH = 6
+var CELL_TOOLTIP = "Cell color depends on the SMA direction: green for rising SMAs, red for falling ones"
+
+var smaLengths = array.from(10, 20, 50, 100, 200, 500)
+
+smaValues = array.new_float()
+for i = 0 to array.size(smaLengths) - 1
+    array.push(smaValues, ta.sma(close, array.get(smaLengths, i)))
+
+var maTable = table.new(position.top_right, TABLE_WIDTH, 4, border_width = 2)
+
+if barstate.isfirst
+    headerColor = color.new(color.blue, TRANSP)
+    table.cell(maTable, 0, 0, text = "SMA Table", bgcolor = headerColor)
+    table.cell(maTable, 0, 1, text = "Short-term", bgcolor = headerColor)
+    table.cell(maTable, 2, 1, text = "Long-term", bgcolor = headerColor)
+    table.merge_cells(maTable, 0, 0, 5, 0)
+    table.merge_cells(maTable, 0, 1, 1, 1)
+    table.merge_cells(maTable, 2, 1, 5, 1)
+
+if barstate.islast
+    for i = 0 to TABLE_WIDTH - 1
+        cellTitle = str.format("SMA {0}", array.get(smaLengths, i))
+        cellValue = array.get(smaValues, i)
+        cellColor = color.new(array.get(smaValues, i) >= array.get(smaValues[1], i) ? color.green : color.red, TRANSP)
+        table.cell(maTable, i, 2, bgcolor = cellColor, text = cellTitle, text_color = color.gray, tooltip = CELL_TOOLTIP)
+        table.cell(maTable, i, 3, bgcolor = cellColor, text = str.tostring(cellValue,  format.mintick), tooltip = CELL_TOOLTIP)

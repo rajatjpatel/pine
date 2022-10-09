@@ -1,0 +1,94 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © shoonya0000
+
+//@version=4
+study(shorttitle="20MT+", title="20MT+", overlay=false)
+bLen = input(20, minval=1)
+bMult = input(2, minval=0.001, maxval=50)
+useTrueRange = input(true)
+kLen = input(20, minval=1)
+kMult = input(1.5)
+range = useTrueRange ? tr : high - low
+rangema = ema(range, kLen)
+
+// Create our Series
+dev = bMult * stdev(close, bLen)
+kelt = rangema * kMult
+mom = sma(close, 8) - sma(close, 21)
+
+
+//assign colors
+dots = if kelt > dev
+    color.red
+else
+    color.aqua
+
+dad = if mom > 0
+    if mom > mom[1]
+        color.green  //green
+    else
+        color.orange  //orange
+else
+    if mom < mom[1]
+        color.red  //red
+    else
+        color.blue  //blue
+
+//Plot our data
+plotshape(0, color=dots, style=shape.circle, location=location.absolute)
+plot(mom, color=dad, title="Mom", style=plot.style_histogram, linewidth=4)
+
+//Plot invisible data for  alerting purposes
+plot(kelt, title="Pulse", transp=100)
+plot(dev, title="Shot", transp=100)
+plus = kelt - dev
+alert = 0
+//alert := security("", "60", plus) > 0 ? alert + @ : alert //add tickerid between the quotes and change @ to next power of 2
+alert := security("bitstamp:btcusd", "180", plus) > 0 ? alert + 1 : alert  // Bitcoin -       1
+alert := security("bitfinex:ethusd", "180", plus) > 0 ? alert + 2 : alert  // Ethereum -      2
+alert := security("bitfinex:ltcusd", "180", plus) > 0 ? alert + 4 : alert  // LiteCoin -      3
+alert := security("bitstamp:btcusd", "60", plus) > 0 ? alert + 8 : alert  //  Bitcoin 1hr -   5
+alert := security("bitstamp:btcusd", "D", plus) > 0 ? alert + 16 : alert  //  Bitcoin Daily - 6
+plot(alert - alert[1], title="Alert Basis", color=alert > 0 ? color.red : color.aqua, transp=100)
+
+//pulse scanner
+hitime = timeframe.isintraday ? "D" : timeframe.isdaily ? "W" :
+   timeframe.isweekly ? "M" : timeframe.ismonthly ? "3M" : "12M"
+hico = security(syminfo.tickerid, hitime, mom > mom[1] ? color.green : color.red)
+himom = security(syminfo.tickerid, hitime, mom)
+plot(himom, title="Higher Chart Momentum", color=hico, transp=100)
+
+////study("Kıvanç HL", overlay=true)//
+KHLv2 = input(false, title="Show Kıvanç HL version2?")
+
+H1= valuewhen(high[1]>=highest(high,13), highest(high,13), 0)
+H2= valuewhen(H1[1]>=highest(high,21),highest(high,21),0)
+H3= valuewhen(H2[1]>=highest(high,34),highest(high,34),0)
+H4= valuewhen(H3[1]>=highest(high,55),highest(high,55),0)
+H5= valuewhen(H4[1]>=highest(high,89),highest(high,89),0)
+H6= valuewhen(H5[1]>=highest(high,144),highest(high,144),0)
+
+L1= valuewhen(low[1]<=lowest(low,13),lowest(low,13),0)
+L2= valuewhen(L1[1]<=lowest(low,21),lowest(low,21),0)
+L3= valuewhen(L2[1]<=lowest(low,34),lowest(low,34),0)
+L4= valuewhen(L3[1]<=lowest(low,55),lowest(low,55),0)
+L5= valuewhen(L4[1]<=lowest(low,89),lowest(low,89),0)
+L6= valuewhen(L5[1]<=lowest(low,144),lowest(low,144),0)
+
+M1=avg(H6,L6)
+
+F1=L6+(H6-L6)*0.236
+F2=L6+(H6-L6)*0.382
+F3=L6+(H6-L6)*0.618
+F4=L6+(H6-L6)*0.786
+
+
+plot(M1, color=green, linewidth=2, title="M1")
+plot(L6, color=red, linewidth=2, title="H6")
+plot(H6, color=red, linewidth=2, title="L6")
+
+
+plot(KHLv2 and F1 ? F1 : na, color=lime)
+plot(KHLv2 and F2 ? F2 : na, color=lime)
+plot(KHLv2 and F3 ? F3 : na, color=lime)
+plot(KHLv2 and F4 ? F4 : na, color=lime)

@@ -1,0 +1,141 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RozaniGhani-RG
+// Credits to Scott M Carney, author of Harmonic Trading Volume 3: Reaction vs. Reversal
+// Alt Bat               - Page 101
+// Bat                   - Page  98
+// Crab                  - Page 104
+// Gartley               - Page  92
+// Butterfly             - Page 113
+// Deep Crab             - Page 107
+// Shark                 - Page 119 - 220
+// Point D and Stop Loss - Page 174
+
+//@version=5
+indicator("Harmonic Pattern Table (Source Code)", shorttitle = "HPT_SC", overlay=true)
+
+// 0. Input
+// 1. array
+// 2. Switch
+// 3. Custom function
+// 4. array.push arr_table
+// 5. if barstate.islast
+
+// 0. Input
+// Tooltip and group
+T0 = "Small font size recommended for mobile app or multiple layout"
+T1 = "Untick to hide"
+T2 = "Tick to hide"
+G0 = "Remove Unnecessary Row / Columns"
+G1 = "Harmonic Animals"
+
+i_s_font  = input.string("normal",            "Font size", tooltip = T0, options = ["tiny", "small",  "normal", "large", "huge"])
+i_s_Y     = input.string("top",          "Table Position", inline = "0", options = ["top",  "middle", "bottom"])
+i_s_X     = input.string("right",                      "", inline = "0", options = ["left", "center", "right"])
+i_s_unit  = input.string("Tolerance", "Tolerance / Range",               options = ["Tolerance", "Range"])
+
+// G0
+// 1
+i_b_title = input.bool(true,  "Title",       inline = "1", group = G0, tooltip = T1)
+// 2
+i_b_no    = input.bool(false, "No     ",     inline = "2", group = G0)
+i_b_xab   = input.bool(false, "Point B",     inline = "2", group = G0)
+i_b_abc   = input.bool(false, "Point C  ",   inline = "2", group = G0, tooltip = T2)
+// 3
+i_b_dbc   = input.bool(false, "Layering",    inline = "3", group = G0)
+i_b_prz   = input.bool(false, "PRZ   ",      inline = "3", group = G0)
+i_b_sl    = input.bool(false, "Stop Loss",   inline = "3", group = G0)
+
+// G1
+// 4
+i_b_abat  = input.bool(true,  "Alt Bat    ", inline = "4", group = G1)
+i_b_bat   = input.bool(true,  "Bat      ",   inline = "4", group = G1)
+i_b_crab  = input.bool(true,  "Crab      ",  inline = "4", group = G1, tooltip = T2)
+//5
+i_b_gart  = input.bool(true,  "Gartley    ", inline = "5", group = G1)
+i_b_bfly  = input.bool(true,  "Butterfly ",  inline = "5", group = G1)
+i_b_dcrab = input.bool(true,  "Deep Crab",   inline = "5", group = G1)
+// 7
+i_b_shark = input.bool(true,  "Shark",       inline = "6", group = G1)
+
+// 1. array
+table[] arr_table = array.new_table()
+
+// 2. Switch
+[n, BC, b_abat, b_gart, b_bfly, b_dcrab] = switch i_s_unit
+    //                   n,               BC,           b_abat,           b_gart,           b_bfly,          b_dcrab
+    "Tolerance" => [ " ; ",  "0.382 ; 0.886",   "0.382 (- 3%)", "0.618 (+ - 3%)", "0.786 (+ - 3%)",   "0.886 (+ 5%)"]
+    =>             [" to ", "0.382 to 0.886", "0.371 to 0.382", "0.599 to 0.637", "0.762 to 0.810", "0.886 to 0.913"]
+
+// cell values
+col_bg    = array.from(color.yellow,       color.yellow,             color.red,             color.red,            color.blue,       color.blue,             color.blue)
+str_title = array.from("NO",         "HARMONIC PATTERN",              "B = XA",   "C = AB\n(POINT C)",  "D = BC\n(LAYERING)",  "D = XA\n(PRZ)", "SL = XA\n(STOP LOSS)")
+str_abat  = array.from("1",                   "ALT BAT",                b_abat,                    BC, "2.000" + n + "3.618",          "1.130",                "1.270")
+str_bat   = array.from("2",                       "BAT", "0.382" + n + "0.500",                    BC, "1.618" + n + "2.618",          "0.886",                "1.130")
+str_crab  = array.from("3",                      "CRAB", "0.382" + n + "0.618",                    BC, "2.618" + n + "3.618",          "1.618",                "2.000")
+str_gart  = array.from("4",                   "GARTLEY",                b_gart,                    BC, "1.130" + n + "1.618",          "0.786",                "1.000")
+str_bfly  = array.from("5",                 "BUTTERFLY",                b_bfly,                    BC, "1.618" + n + "2.240",          "1.270",                "1.414")
+str_dcrab = array.from("6",                 "DEEP CRAB",               b_dcrab,                    BC, "2.000" + n + "3.618",          "1.618",                "2.000")
+str_shark = array.from("7",                     "SHARK", "0.382" + n + "0.618", "1.130" + n + "1.618", "1.618" + n + "2.240", "0.886 or 1.130",                "1.270")
+
+// 3. Custom function
+// Dependencies : arr_table, col_bg and i_s_font
+f_cell(_input, int _row, _id) =>
+    if _input
+        for index = 0 to 6
+            table.cell(array.get(arr_table, 0), index, _row,
+                         bgcolor = array.get(col_bg, index),
+                         text_size = i_s_font,
+                         text_color = color.black,
+                         text = array.get(_id, index))
+    // Dependency : i_b_bat
+    if _input == i_b_bat and _input
+        if i_b_prz == false
+            table.cell_set_bgcolor(array.get(arr_table, 0), 5, 2, color.red)
+    // Dependency : i_b_gart
+    if _input == i_b_gart and _input
+        if i_b_prz == false
+            table.cell_set_bgcolor(array.get(arr_table, 0), 5, 4, color.red)
+    // Dependency : i_b_shark
+    if _input == i_b_shark and _input
+        table.cell_set_bgcolor(array.get(arr_table, 0), 1, 7, color.orange)
+        if i_b_no  == false and _input
+            table.cell_set_bgcolor(array.get(arr_table, 0), 0, 7, color.orange)
+        if i_b_abc  == false
+            table.cell_set_bgcolor(array.get(arr_table, 0), 3, 7, color.blue)
+        if i_b_prz == false
+            table.cell_set_bgcolor(array.get(arr_table, 0), 5, 7, color.orange)
+
+// Dependency : arr_table
+f_clear(_input, int _column) =>
+    if _input
+        table.clear(array.get(arr_table, 0), _column, 0, _column, 8)
+
+f_table_top() => table.new(position = i_s_Y + '_' + i_s_X, rows = 9, columns = 7, border_color = na, border_width = 1)
+
+// 4. array.push arr_table
+array.push(arr_table, f_table_top())
+
+// 5. if barstate.islast
+if barstate.islast
+    // Table cell based on input
+    // Input dependencies  : i_b_title, i_b_abat, i_b_bat, i_b_crab, i_b_gart, i_b_bfly, i_b_dcrab and i_b_shark
+    // Int dependencies    :         0,        1,       2,        3,        4,        5,         6 and 7
+    // String dependencies : str_title, str_abat, str_bat, str_crab, str_gart, str_bfly, str_dcrab and str_shark
+    f_cell(i_b_title, 0, str_title)
+    f_cell(i_b_abat,  1, str_abat)
+    f_cell(i_b_bat,   2, str_bat)
+    f_cell(i_b_crab,  3, str_crab)
+    f_cell(i_b_gart,  4, str_gart)
+    f_cell(i_b_bfly,  5, str_bfly)
+    f_cell(i_b_dcrab, 6, str_dcrab)
+    f_cell(i_b_shark, 7, str_shark)
+
+    // Clear cell based on input
+    // Input dependencies : i_b_no, i_b_xab, i_b_abc, i_b_dbc, i_b_prz and i_b_sl
+    // Int dependencies   :      0,       2,       3,       4,       5 and 6
+    f_clear(i_b_no,   0)
+    f_clear(i_b_xab,  2)
+    f_clear(i_b_abc,  3)
+    f_clear(i_b_dbc,  4)
+    f_clear(i_b_prz,  5)
+    f_clear(i_b_sl,   6)

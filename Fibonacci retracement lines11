@@ -1,0 +1,52 @@
+//@version=3
+study("Fibonacci retracement lines", overlay=true)
+per=input(150, "Calculate for last bars")
+hl=highest(high,per)
+ll=lowest(low,per)
+dist=hl-ll
+
+
+f0 = close[per]>close ? hl : ll+dist
+f1 = close[per]>close ? hl-dist*0.236 : ll+dist*0.786
+f2 = close[per]>close ? hl-dist*0.382 : ll+dist*0.618
+f3 = close[per]>close ? hl-dist*0.5 : ll+dist*0.5
+f4 = close[per]>close ? hl-dist*0.618 : ll+dist*0.382
+f5 = close[per]>close ? hl-dist*0.786 : ll+dist*0.236
+f6 = close[per]>close ? hl-dist : ll
+
+plot(f0, style=circles, color=silver)
+plot(f6, style=circles, color=silver)
+
+// 0 a 1
+plotshape(close[per]>close?f0:na, location=location.absolute, color=black, transp=0, text="1", textcolor=silver, style=shape.labeldown, show_last=1)
+plotshape(close[per]<close?f0:na, location=location.absolute, color=black, transp=0, text="0", textcolor=silver, style=shape.labeldown, show_last=1)
+plotshape(close[per]>close?f6:na, location=location.absolute, color=black, transp=0, text="0", textcolor=silver, style=shape.labeldown, show_last=1)
+plotshape(close[per]<close?f6:na, location=location.absolute, color=black, transp=0, text="1", textcolor=silver, style=shape.labeldown, show_last=1)
+
+//0.5
+plot(f3, style=circles, color=green)
+plotshape(f3, location=location.absolute, color=black, transp=0, text="0.5", textcolor=green, style=shape.labeldown, show_last=1)
+
+// .236
+plot(close[per]<close?f1:na, style=circles, color=red)
+plotshape(close[per]<close?f1:na, location=location.absolute, color=black, transp=0, text=".236", textcolor=red, style=shape.labeldown, show_last=1)
+plot(close[per]>close?f5:na, style=circles, color=red)
+plotshape(close[per]>close?f5:na, location=location.absolute, color=black, transp=0, text=".236", textcolor=red, style=shape.labeldown, show_last=1)
+
+// .382
+plot(close[per]<close?f2:na, style=circles, color=lime)
+plotshape(close[per]<close?f2:na, location=location.absolute, color=black, transp=0, text=".382", textcolor=lime, style=shape.labeldown, show_last=1)
+plot(close[per]>close?f4:na, style=circles, color=lime)
+plotshape(close[per]>close?f4:na, location=location.absolute, color=black, transp=0, text=".382", textcolor=lime, style=shape.labeldown, show_last=1)
+
+// .618
+plot(close[per]<close?f4:na, style=circles, color=yellow)
+plotshape(close[per]<close?f4:na, location=location.absolute, color=black, transp=0, text=".618", textcolor=yellow, style=shape.labeldown, show_last=1)
+plot(close[per]>close?f2:na, style=circles, color=yellow)
+plotshape(close[per]>close?f2:na, location=location.absolute, color=black, transp=0, text=".618", textcolor=yellow, style=shape.labeldown, show_last=1)
+
+// .786
+plot(close[per]<close?f5:na, style=circles, color=aqua)
+plotshape(close[per]<close?f5:na, location=location.absolute, color=black, transp=0, text="786", textcolor=aqua, style=shape.labeldown, show_last=1)
+plot(close[per]>close?f1:na, style=circles, color=aqua)
+plotshape(close[per]>close?f1:na, location=location.absolute, color=black, transp=0, text=".786", textcolor=aqua, style=shape.labeldown, show_last=1)

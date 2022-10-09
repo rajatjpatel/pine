@@ -1,0 +1,87 @@
+//@version=5
+indicator('VADER', 'VADER', precision=0, timeframe='', timeframe_gaps=false)
+
+// ***********************************************************************************************************
+f_RelVol(_value, _length) =>
+    min_value = ta.lowest(_value, _length)
+    max_value = ta.highest(_value, _length)
+    ta.stoch(_value, max_value, min_value, _length) / 100
+// ***********************************************************************************************************
+
+// ===========================================================================================================
+//      Inputs
+// ===========================================================================================================
+
+price   = close
+length  = input.int(10, minval=1)
+DER_avg = input.int(5, 'Average',   minval=1, inline='DER', group='Directional Energy Ratio')
+smooth  = input.int(3, 'Smoothing', minval=1, inline='DER', group='Directional Energy Ratio')
+
+v_calc  = input.string('Relative', 'Calculation', options=['Relative', 'Full', 'None'], group='Volume Parameters')
+vlookbk = input.int(20, 'Lookback (for Relative)', minval=1,                            group='Volume Parameters')
+
+// ===========================================================================================================
+//          Calculations
+// ===========================================================================================================
+
+// Volume Calculation Option  -- will revert to no volume acceleration for instruments with no volume data
+vola    =
+  v_calc == 'None' or na(volume) ? 1 :
+  v_calc == 'Relative' ? f_RelVol(volume, vlookbk) :
+  volume
+
+R       = (ta.highest(2) - ta.lowest(2)) / 2                    // R is the 2-bar average bar range - this method accomodates bar gaps
+sr      = ta.change(price) / R                                  // calc ratio of change to R
+rsr     = math.max(math.min(sr, 1), -1)                         // ensure ratio is restricted to +1/-1 in case of big moves
+c       = fixnan(rsr * vola)                                    // add volume accel -- fixnan adresses cases where no price change between bars
+
+c_plus  = math.max(c, 0)                                        // calc directional vol-accel energy
+c_minus = -math.min(c, 0)
+
+// plot(c_plus)
+// plot(c_minus)
+
+dem     = ta.wma(c_plus, length) / ta.wma(vola, length)         //average directional energy ratio
+sup     = ta.wma(c_minus, length) / ta.wma(vola, length)
+
+// plot(vola, 'Vol Accel')
+
+adp     = 100 * ta.wma(dem, DER_avg)
+asp     = 100 * ta.wma(sup, DER_avg)
+
+anp     = adp - asp
+anp_s   = ta.wma(anp, smooth)
+
+// ===========================================================================================================
+//      Colors & plots
+// ===========================================================================================================
+c_adp   = color.new(color.aqua, 50)
+c_asp   = color.new(color.orange, 50)
+c_fd    = color.new(color.green, 80)
+c_fs    = color.new(color.red, 80)
+c_zero  = color.new(#ffee00, 70)
+c_up    = color.new(#33ff00, 0)
+c_dn    = color.new(#ff1111, 0)
+up      = anp_s >= 0
+
+hline(0, 'Zero Line', c_zero, hline.style_solid)
+
+s = plot(asp, 'Supply Energy', c_asp, 2, style=plot.style_circles,  join=true)
+d = plot(adp, 'Demand Energy', c_adp, 2, style=plot.style_cross,    join=true)
+fill(d, s, adp > asp ? c_fd : c_fs)
+
+plot(anp, 'VADER', color.new(color.gray, 30))
+plot(anp_s, 'Signal', up ? c_up : c_dn, 3)
+
+// ===========================================================================================================
+//      v2.0 adding alerts
+// ===========================================================================================================
+
+Alert_up    = ta.crossover(anp_s,0)
+Alert_dn    = ta.crossunder(anp_s,0)
+Alert_swing = ta.cross(anp_s,0)
+
+// "*" in alert title for the alerts to show in the right order up/down/swing
+alertcondition(Alert_up,    "* VADER Up",       "VADER Up - Buying Energy Detected!")
+alertcondition(Alert_dn,    "** VADER Down",    "VADER Down - Selling Energy Detected!")
+alertcondition(Alert_swing, "*** VADER Swing",  "VADER Swing - Possible Reversal")
