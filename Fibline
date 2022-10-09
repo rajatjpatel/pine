@@ -1,0 +1,29 @@
+study("Fibline Glance", overlay=true)
+
+emaLength = input(title="EMA length", defval=100)
+
+bbFastLength = input(9)
+bbFastDeviation = input(0.1)
+
+bbSlowLength = input(40)
+bbSlowDeviation = input(0.4)
+
+bbFastAvg = sma(close, bbFastLength)
+bbFastStdev = stdev(close, bbFastLength)
+bbFastUpper = bbFastAvg + bbFastDeviation*bbFastStdev
+bbFastLower = bbFastAvg - bbFastDeviation*bbFastStdev
+
+p1 = plot(bbFastUpper, color=orange)
+p2 = plot(bbFastLower, color=orange)
+fill(p1, p2, color=orange, transp=60)
+
+bbSlowAvg = sma(close, bbSlowLength)
+bbSlowStdev = stdev(close, bbSlowLength)
+bbSlowUpper = bbSlowAvg + bbSlowDeviation*bbSlowStdev
+bbSlowLower = bbSlowAvg - bbSlowDeviation*bbSlowStdev
+
+p3 = plot(bbSlowUpper, color=#4985e7)
+p4 = plot(bbSlowLower, color=#4985e7)
+fill(p3, p4, color=#4985e7, transp=30)
+
+plot(ema(close, emaLength), color=lime)
