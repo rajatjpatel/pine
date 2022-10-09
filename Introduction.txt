@@ -1,0 +1,417 @@
+1 - Introduction
+
+2 - The Nature of Price
+
+3 - The Anthropic Principle and Econophysics
+
+4 - Soros, Einstein, Weinstein and Simmons
+
+5 - The Level Zero
+
+6 - The Level One
+
+7 - Aspects of Trading Correctly
+
+8 - Counterpoint Types
+
+9 - Metaphysics and Narrative
+
+10 - Efficient Market Hypothesis and The Observer Problem
+
+11 - Market Manipulation
+
+12 - Praxeological Elements
+
+13 - Extremes
+
+14 - Midpoints
+
+15 - Frequencies
+
+16 - Inward Frequency
+
+17 - Outward Frequency
+
+18 - Precise Supply and Demand Zones
+
+19 - Dynamic Frequency Breakout
+
+20 - Wick Expansion
+
+21 - Pressure Zones
+
+22 - Volatility Shift Line
+
+23 - Solid Structure
+
+24 - Fake Structure
+
+25 - Manipulation Pattern
+
+26 - Fractal Bar
+
+27 - Inside Bar
+
+28 - Outside Bar
+
+29 - Pressure Bar
+
+30 - Hybrid Bar
+
+31 - Line Theory
+
+32 - Anchoring
+
+33 - Extension
+
+34 - Validation
+
+35 - Simple Line Extrapolation & Non-Equidistant Line Extrapolation
+
+36 - Newtonian Action Space Extrapolation & Fibonacci Action Space Extrapolation
+
+37 - Vector Space Extrapolation
+
+38 - Single & Double Negative Vector Extrapolation
+
+39 - Vector Decomposition
+
+40 - Vector Addition
+
+41 - Circular Decomposition
+
+42 - Frequency Shifting and Frequency Tuning
+
+43 - Convergence, Square Fields & Clusters
+
+44 - Pitchforks, Inward Parallels, Fibforks & Polygonal Fields
+
+45 - Cross Dimensionality
+
+46 - Vectorization
+
+47 - Reverse Engineering
+
+48 - Entries, Stops & Exits
+
+49 - Two Rules for Risk and Psychology
+
+50 - Step by Step
+
+1 - Nash Equilibrium & Market Manipulation
+
+2 - Newtonian Action Space Extrapolation & The Counterpoint Between Players
+
+3 - The Good and the Bad of Dynamic Frequency Breakouts
+
+4 - Cross Dimensionality and Reverse Engineering
+
+5 - Near Extremes, Non-Equidistant Extrapolation Lines & Neutral Bias.
+
+6 - Standing Motion to Running Motion & Triple Intersection
+
+7 - Inward Parallels, Good Stops & Positive Feedback Loops
+
+8 - Fibonacci Square Fields, Tuned Forks & Circular Decomposition
+
+9 - Attention to Detail, Open Space & The Barriers of Price
+
+10 - Switching Quality of Subtle Lines and Depth of Analysis
+
+11 - Market Manipulation, Evolutionary Psychology and Pitchforks
+
+12 - The Paradox of Fractal Flows and The Imperfection of the Market
+
+1 - Ambiguity in the B-Axis and Failure of Measuring Volatility Range
+
+2 - Market Duality and the Symmetry Between Stable and Unstable Conditions
+
+3 - Variable Trading Time, Flow Transformations and Circular Decomposition
+
+4 - Strange Manipulation and the Importance of the Reverse Engineering Principle
+
+5 - Chaotic Dynamic Frequency Breakouts and Dynamic Between Price Vectors
+
+6 - The Reverse Von Restorff Effect, the Nobel Prize in Economics and Pitchforks
+
+7 - Market Manipulation, Momentum Vectoring and Powerful Lines
+
+8 - The Dynamic of a Precise Entry and the Elements of a Great Trade
+
+9 - The Intricate Relationship Between Players in Different Fractal Dimensions
+
+10 - Advanced Praxeological Lines, Good Stops, and Trading on the Edge
+
+11 - The Asymmetry of Volatility Dissipation and Rationality in the Market
+
+12 - Trading with Simple Lines and the Cascading Effect of Imprecision
+
+1 - The 6 Dimensions of a Professional Trading Strategy
+
+2 - Contextual Trading
+
+3 - Multitimeframe Analysis
+
+4 - Hierarchy of Signals
+
+5 - Trade Location
+
+6 - Relative Recognition of Market Movements
+
+7 - Subjective Interpretation of Markets
+
+8 - Interdependence of Strategy Dimensions
+
+9 - Technical Analysis
+
+10 - Fractal Flow Strategy Techniques Overview
+
+11 - Price, Momentum and Simple Divergence
+
+12 - Fractal Analysis Concept
+
+13 - Fractal Reversal Divergence
+
+14 - Fractal Hybrid Divergence
+
+15 - Fractal Bar
+
+16 - Auxiliary Tools Introduction
+
+17 - Support and Resistance
+
+18 - Candle Interpretation
+
+19 - Trend Recognition
+
+20 - Risk Management Introduction
+
+21 - Risk/Reward Ratios
+
+22 - Margins of Error
+
+23 - Risk Contraction and Expansion
+
+24 - Position Sizing
+
+25 - Shooting Stops Forward
+
+26 - Trading Psychology
+
+27 - Prospect Theory
+
+28 - The Intelligence Paradox
+
+29 - Availability Heuristic
+
+30 - Attentional Bias
+
+31 - The Illusory Truth Effect
+
+32 - Mere-Exposure Effect
+
+33 - Mood Congruent Bias
+
+34 - Baader-Meinhof Phenomenon
+
+35 - Empathy Gap
+
+36 - Omission Bias
+
+37 - Von Restorff Effect
+
+38 - Focusing Effect
+
+39 - Framing Effect
+
+40 - The Weber-Fechner Law
+
+41 - Confirmation Bias
+
+42 - Semmelweis Reflex
+
+43 - Bias Blind Spot
+
+44 - Clustering Illusion
+
+45 - Naive Realism
+
+46 - Gambler's Fallacy
+
+47 - Hot Hand Fallacy
+
+48 - The Bandwagon Effect
+
+49 - Zero Sum Bias
+
+50 - Hindsight Bias
+
+51 - Outcome Bias
+
+52 - Restraint Bias
+
+53 - Overconfidence Effect
+
+54 - Dunning-Kruger Effect
+
+55 - Peltzman Effect
+
+56 - Hyperbolic Discounting
+
+57 - Sunk Cost Fallacy
+
+58 - Irrational Escalation
+
+59 - Zero Risk Bias
+
+60 - The Disposition Effect
+
+61 - Pseudo-Certainty Effect
+
+62 - Backfire Effect
+
+63 - Reverse Psychology
+
+64 - The Less-Is-Better Effect
+
+65 - Operational Logic
+
+66 - Trade Plan
+
+67 - EXAMPLE 1 - EURUSD M5 Long Trade with 2nd Degree Fractal Reversal Divergence
+
+68 - EXAMPLE 2 - EURUSD H1 Short Trade with 2nd Degree Fractal Reversal Divergence
+
+69 - EXAMPLE 3 - AUDUSD M15 Short Trade with 2nd Degree Fractal Reversal Divergence
+
+70 - EXAMPLE 4 - AUDJPY M15 Long Trade with 3rd Degree Fractal Hybrid Divergence
+
+71 - EXAMPLE 5 - USDCAD M30 Long Trade with 2nd Degree Fractal Hybrid Divergence
+
+72 - EXAMPLE 6 - EURGBP H1 Short Trade with 3rd Degree Fractal Hybrid Divergence
+
+73 - EXAMPLE 7 - GBPJPY H4 Short Trade with 2nd Degree Fractal Reversal Divergence
+
+74 - EXAMPLE 8 - EURJPY H1 Long Trade using 3rd Degree Fractal Hybrid Divergence
+
+1 - The 3D Axis of Market Manipulation
+
+2 - Plato and The Market Makers
+
+3 - Market Depth, Order Clusters and Liquidity Pools
+
+4 - Wash Lines
+
+5 - Organized Behavior
+
+6 - Press Zones
+
+7 - Frequency Lines
+
+8 - Sloped Wash Lines
+
+9 - Step by Step Manipulation Process
+
+10 - Trade Setups
+
+11 - EURUSD M15 Example
+
+12 - USDJPY M30 Example
+
+13 - GBPJPY H1 Example
+
+14 - AUDUSD H4 Example
+
+15 - GBPUSD M15 Example
+
+16 - USDCAD M5 Example
+
+17 - EURGBP H1 Example
+
+18 - EURJPY M30 Example
+
+19 - AUDJPY M15 Example
+
+20 - USDCAD M30 Example
+
+21 - EURUSD M30 Example
+
+22 - USDJPY M15 Example
+
+23 - AUDUSD H1 Example
+
+24 - GBPUSD M15 Example
+
+25 - EURCHF M30 Example
+
+1 - Introduction to Econophysics
+
+2 - Physics, The Mind and Market Prediction
+
+3 - Price as a Moving Object & The Tools of the Trade
+
+4 - Newton's 1st Law and Market Trends
+
+5 - Newton's 2nd Law and Price Trajectory
+
+6 - Newton's 3rd Law and Symmetry
+
+7 - Conservation Law and Potential Energy
+
+8 - Trend Recognition (FFS)
+
+9 - The Pitchfork
+
+10 - Types of Pitchforks and Auxiliary Tools
+
+11 - Frequency Lines (MMS)
+
+12 - Frequency Shifting
+
+13 - The Paradox of Meaningful Lines
+
+14 - Reverse Engineering of Market Contexts and the Nudge Hypothesis.
+
+15 - Dynamic Resolution and Price as a Moving Object
+
+16 - Long Trade in the EURUSD H1 with Pendulum and Standard Pitchforks
+
+17 - Short Trade in the AUDUSD H4 with a Standard Pitchfork
+
+18 - Short Trade in the USDCAD M15 with a Simple Pitchfork
+
+19 - Short Trade in the GBPUSD M30 with Simple Lines
+
+20 - Long Trade in the CADJPY M15 with a Perfect Triple Intersection
+
+21 - Short Trade in the EURJPY M30 with a Double Intersection
+
+22 - Short Trade in the EURUSD M30 with Triple Intersectionality
+
+23 - Long Trade in the USDJPY M15 with a Secondary Entry
+
+24 - Short Trade in the USDCHF with Frequency Expansion
+
+25 - Short Trade in the GBPAUD H1 with Opposing Pitchforks
+
+26 - HISTORICAL Width Pitchfork Describing the EURUSD M30
+
+27 - HISTORICAL Modified Pendulum and Edge Detection in the USDCHF H4
+
+28 - HISTORICAL Perfect Market Angles in the AUDJPY H1
+
+29 - HISTORICAL Modified Pitchfork in the GBPUSD H1
+
+30 - HISTORICAL Hidden Symmetry and Double Line in the EURNOK M15
+
+31 - HISTORICAL Frequency Shifting in the Weekly EURCAD
+
+32 - HISTORICAL Frequency Along the Tail and Double Line in the EURGBP H1
+
+33 - HISTORICAL Standard x Pendulum Pitchforks in the AUDUSD M15
+
+34 - HISTORICAL Modified Pitchfork with Double Line in the USDJPY M30
+
+35 - HISTORICAL Standard to Width Fork for Precision in the ZARJPY H1
+
+36 - HISTORICAL Standard Pitchfork and Frequency Shift in the EURUSD M1

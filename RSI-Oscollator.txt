@@ -1,0 +1,100 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Hotchachachaaa
+//Credit to PheonixBinary for use of the dynamic coloring in "The Arty" (I believe he found it in another indicator but I do not know wich one), modified to use as a lower indicator/trend indicator. 
+
+//@version=5
+indicator("RSI Oscillator")
+
+
+f_c_gradientRelative(_source, _min, _max, _c_bear, _c_bull) =>
+    // float _source: input signal
+    // float _min   : minimum range of input signal.
+    // float _max   : maximum range of input signal.
+    // color _c_bear: bear color at `_min` level.
+    // color _c_bull: bull color at `_max` level.
+    // Dependency: `f_colorNew()`
+    var float _center = _min + (_max - _min) / 2
+    color _return = _source >= _center ? 
+      color.from_gradient(_source, _center, _max, color.new(_c_bull, 100), color.new(_c_bull, 0)) : 
+      color.from_gradient(_source, _min, _center, color.new(_c_bear, 0), color.new(_c_bear, 100))
+
+
+
+len1 = input.int(21, minval=1, title="Length1")
+src1 = close
+smma1 = 0.0
+smma1 := na(smma1[1]) ? ta.sma(src1, len1) : (smma1[1] * (len1 - 1) + src1) / len1
+
+len2 = input.int(315, minval=1, title="Length2")
+src2 = close
+smma2 = 0.0
+smma2 := na(smma2[1]) ? ta.sma(src2, len2) : (smma2[1] * (len2 - 1) + src2) / len2
+
+MA1 = smma1
+MA2 = smma2
+
+
+
+
+
+
+length1 = 10
+beta1   = 1
+alpha1  = 1
+var b1 = array.new_float(0)
+
+
+if barstate.isfirst
+    for i = 0 to length1-1
+        x = i/(length1-1)
+        w = math.pow(x,alpha1-1)*math.pow(1-x,beta1-1)
+        array.push(b1,w)
+den1 = array.sum(b1)
+//----
+
+sum1 = 0.
+for i = 0 to length1-1
+    sum1 := sum1 + MA1[i]*array.get(b1,i)
+filt1 = sum1/den1
+os1 = ta.rsi(filt1,length1)/100
+
+length2 = 10
+beta2   = 1
+alpha2  = 1
+var b2 = array.new_float(0)
+
+if barstate.isfirst
+    for i = 0 to length2-1
+        x = i/(length2-1)
+        w = math.pow(x,alpha2-1)*math.pow(1-x,beta2-1)
+        array.push(b2,w)
+den2 = array.sum(b2)
+//----
+
+sum2 = 0.
+for i = 0 to length2-1
+    sum2 := sum2 + MA2[i]*array.get(b2,i)
+filt2 = sum2/den2
+os2 = ta.rsi(filt2,length2)/100
+
+
+modRSIValue1 = os1*199
+modRSIValue2 = os2*199
+
+color dynColor1 = f_c_gradientRelative(modRSIValue1, 0, 200, #FF1100,#30FF85)
+color dynColor2 = f_c_gradientRelative(modRSIValue2, 0, 200, #6C3483 ,#2874A6 )
+
+plot(modRSIValue1, "3rd color 1", #FF5500, 2)
+plot(modRSIValue1, "dynamic color calc1", dynColor1, 2)
+
+plot(modRSIValue2, "3rd color 2", #5D6D7E, 2)
+plot(modRSIValue2, "dynamic color calc2", dynColor2, 2)
+
+hline(197, title="OB line",color= color.gray, linestyle= hline.style_dashed)
+hline(3, title= "OS line",color= color.gray, linestyle= hline.style_dashed)
+
+alertcondition(ta.crossover(modRSIValue1,197), title= "OB Alert", message= "Bullish Trend")
+alertcondition(ta.crossunder(modRSIValue1,197), title= "ExitOB Alert", message= "Exit Bullish Trend")
+
+alertcondition(ta.crossunder(modRSIValue1,3), title= "OS Alert", message= "Bearish Trend")
+alertcondition(ta.crossover(modRSIValue1,3), title= "Exit OS Alert", message= "Exit Bearish Trend")

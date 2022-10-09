@@ -1,0 +1,208 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Â© Hotchachachaaa
+
+//@version=5
+indicator("Hotch Session",overlay=true,max_bars_back=500)
+tz                  = "UTC"
+tsAsia              = input.bool(   title="Show Asian Session",     defval=true, group = "Asian Trade Session")
+startHourAsia       = input.int(    title="Asia Start hour",        defval=0,   minval=0, maxval=23,    group = "Asian Trade Session")
+startMinuteAsia     = input.int(    title="Asia Start minute",      defval=0,  minval=0, maxval=59,    group = "Asian Trade Session")
+endHour2Asia        = input.int(    title="Asia End hour",          defval=8,   minval=0, maxval=23,    group = "Asian Trade Session")
+endMinute2Asia      = input.int(    title="Asia End minute",        defval=0,   minval=0, maxval=59,    group = "Asian Trade Session")
+tsEurope            = input.bool(   title="Show European Session",  defval=true,                        group = "European Trade Session")
+startHourEurope     = input.int(    title="Europen Start hour",     defval=8,   minval=0, maxval=23,    group = "European Trade Session")
+startMinuteEurope   = input.int(    title="Europen Start minute",   defval=00,  minval=0, maxval=59,    group = "European Trade Session")
+endHour2Europe      = input.int(    title="Europen End hour",       defval=14,  minval=0, maxval=23,    group = "European Trade Session")
+endMinute2Europe    = input.int(    title="Europen End minute",     defval=0,   minval=0, maxval=59,    group = "European Trade Session")
+tsAmericas          = input.bool(   title="Show American Session",  defval=true,                        group = "American Trade Session")
+startHourAmericas   = input.int(    title="Americas Start hour",    defval=12,  minval=0, maxval=23,    group = "American Trade Session")
+startMinuteAmericas = input.int(    title="Americas Start minute",  defval=30,  minval=0, maxval=59,    group = "American Trade Session")
+endHour2Americas    = input.int(    title="Americas End hour",      defval=16,  minval=0, maxval=23,    group = "American Trade Session")
+endMinute2Americas  = input.int(    title="Americas End minute",    defval=0,   minval=0, maxval=59,    group = "American Trade Session")
+tsCustom            = input.bool(   title="Show Custom Session",    defval=false,                       group = "Custom Trade Session")
+startHourCustom     = input.int(    title="Custom Start hour",      defval=16,  minval=0, maxval=23,    group = "Custom Trade Session")
+startMinuteCustom   = input.int(    title="Custom Start minute",    defval=00,  minval=0, maxval=59,    group = "Custom Trade Session")
+endHour2Custom      = input.int(    title="Custom End hour",        defval=20,  minval=0, maxval=23,    group = "Custom Trade Session")
+endMinute2Custom    = input.int(    title="Custom End minute",      defval=0,   minval=0, maxval=59,    group = "Custom Trade Session")
+displayCustomBG     = input.bool(   title="Show Custom Background", defval=false,                       group = "Custom Trade Session")
+showMon = input(title="Monday",     defval=true, group = "Trade Session")
+showTue = input(title="Tuesday",    defval=true, group = "Trade Session")
+showWed = input(title="Wednesday",  defval=true, group = "Trade Session")
+showThu = input(title="Thursday",   defval=true, group = "Trade Session")
+showFri = input(title="Friday",     defval=true, group = "Trade Session")
+showSat = input(title="Saturday",   defval=false, group = "Trade Session")
+showSun = input(title="Sunday",     defval=false, group = "Trade Session")
+tzYear = year(time, tz)
+tzMonth = month(time, tz)
+tzDay = dayofmonth(time, tz)
+tzDayOfWeek = dayofweek(time, tz)
+displayBG   = input.bool(title="Display Session as Background Color", defval = true)
+displayHiLo = input.bool(title="Display Session High/Low", defval= true)
+////////////////asia session
+startTime1Asia = timestamp(tz, tzYear, tzMonth, tzDay, startHourAsia, startMinuteAsia)
+endTime1Asia = timestamp(tz, tzYear, tzMonth, tzDay, endHour2Asia, endMinute2Asia)
+activeAsia = if startTime1Asia <= time and time <= endTime1Asia and tsAsia
+    if tzDayOfWeek == dayofweek.monday and showMon
+        true
+    else if tzDayOfWeek == dayofweek.tuesday and showTue
+        true
+    else if tzDayOfWeek == dayofweek.wednesday and showWed
+        true
+    else if tzDayOfWeek == dayofweek.thursday and showThu
+        true
+    else if tzDayOfWeek == dayofweek.friday and showFri
+        true
+    else if tzDayOfWeek == dayofweek.saturday and showSat
+        true
+    else if tzDayOfWeek == dayofweek.sunday and showSun
+        true
+    else
+        false
+else
+    false
+
+var float Asiahigh  = na
+var float Asialow   = na
+bgColorAsia         = color.new(color.red,85)
+rangeColorAsia      = activeAsia[1] ? color.new(color.red,0): color.new(color.red,100)  
+
+AsiaLookback= nz(ta.barssince(ta.change(activeAsia))) + 1
+
+if activeAsia
+    
+    Asiahigh := nz(ta.highest(high,AsiaLookback))
+    Asialow  := nz(ta.lowest(low,AsiaLookback))
+
+if not activeAsia[1]
+    Asiahigh := high[1]
+    Asialow := low[1]
+    
+plot(displayHiLo?Asiahigh :na  , color= rangeColorAsia, title= "Asia High",linewidth=2)   
+plot(displayHiLo?Asialow  :na, color= rangeColorAsia, title= "Asia Low",linewidth=2) 
+bgcolor(activeAsia and displayBG ? bgColorAsia : na, title = "Asia Session Background")
+
+////////////////Europe session
+startTime1Europe = timestamp(tz, tzYear, tzMonth, tzDay, startHourEurope, startMinuteEurope)
+endTime1Europe = timestamp(tz, tzYear, tzMonth, tzDay, endHour2Europe, endMinute2Europe)
+activeEurope = if startTime1Europe <= time and time <= endTime1Europe and tsEurope
+    if tzDayOfWeek == dayofweek.monday and showMon
+        true
+    else if tzDayOfWeek == dayofweek.tuesday and showTue
+        true
+    else if tzDayOfWeek == dayofweek.wednesday and showWed
+        true
+    else if tzDayOfWeek == dayofweek.thursday and showThu
+        true
+    else if tzDayOfWeek == dayofweek.friday and showFri
+        true
+    else if tzDayOfWeek == dayofweek.saturday and showSat
+        true
+    else if tzDayOfWeek == dayofweek.sunday and showSun
+        true
+    else
+        false
+else
+    false
+
+var float Europehigh  = na
+var float Europelow   = na
+bgColorEurope         = color.new(color.green,85)
+rangeColorEurope      = activeEurope[1] ? color.new(color.green,0): color.new(color.green,100)  
+
+EuropeLookback= nz(ta.barssince(ta.change(activeEurope))) + 1
+if activeEurope
+    
+    Europehigh := nz(ta.highest(high,EuropeLookback))
+    Europelow  := nz(ta.lowest(low,EuropeLookback))
+    
+if not activeEurope[1]
+    Europehigh := high[1]
+    Europelow := low[1]
+    
+plot(displayHiLo?Europehigh:na  , color= rangeColorEurope, title= "Europe High",linewidth=2)   
+plot(displayHiLo?Europelow :na , color= rangeColorEurope, title= "Europe Low",linewidth=2) 
+bgcolor(activeEurope and displayBG ? bgColorEurope : na, title = "Europe Session Background")
+
+////////////////Americas session
+startTime1Americas = timestamp(tz, tzYear, tzMonth, tzDay, startHourAmericas, startMinuteAmericas)
+endTime1Americas = timestamp(tz, tzYear, tzMonth, tzDay, endHour2Americas, endMinute2Americas)
+activeAmericas = if startTime1Americas <= time and time <= endTime1Americas and tsAmericas
+    if tzDayOfWeek == dayofweek.monday and showMon
+        true
+    else if tzDayOfWeek == dayofweek.tuesday and showTue
+        true
+    else if tzDayOfWeek == dayofweek.wednesday and showWed
+        true
+    else if tzDayOfWeek == dayofweek.thursday and showThu
+        true
+    else if tzDayOfWeek == dayofweek.friday and showFri
+        true
+    else if tzDayOfWeek == dayofweek.saturday and showSat
+        true
+    else if tzDayOfWeek == dayofweek.sunday and showSun
+        true
+    else
+        false
+else
+    false
+
+var float Americashigh  = na
+var float Americaslow   = na
+bgColorAmericas         = color.new(color.blue,85)
+rangeColorAmericas      = activeAmericas[1] ? color.new(color.blue,0): color.new(color.blue,100)  
+
+AmericasLookback= nz(ta.barssince(ta.change(activeAmericas))) + 1 
+if activeAmericas
+    
+    Americashigh := nz(ta.highest(high,AmericasLookback))
+    Americaslow  := nz(ta.lowest(low,AmericasLookback))
+    
+if not activeAmericas[1]
+    Americashigh := high[1]
+    Americaslow := low[1]
+    
+plot(displayHiLo?Americashigh:na  , color= rangeColorAmericas, title= "Americas High",linewidth=2)   
+plot(displayHiLo?Americaslow:na  , color= rangeColorAmericas, title= "Americas Low",linewidth=2) 
+bgcolor(activeAmericas and displayBG ? bgColorAmericas : na, title = "Americas Session Background")
+
+////////////////Custom session
+startTime1Custom = timestamp(tz, tzYear, tzMonth, tzDay, startHourCustom, startMinuteCustom)
+endTime1Custom = timestamp(tz, tzYear, tzMonth, tzDay, endHour2Custom, endMinute2Custom)
+activeCustom = if startTime1Custom <= time and time <= endTime1Custom and tsCustom
+    if tzDayOfWeek == dayofweek.monday and showMon
+        true
+    else if tzDayOfWeek == dayofweek.tuesday and showTue
+        true
+    else if tzDayOfWeek == dayofweek.wednesday and showWed
+        true
+    else if tzDayOfWeek == dayofweek.thursday and showThu
+        true
+    else if tzDayOfWeek == dayofweek.friday and showFri
+        true
+    else if tzDayOfWeek == dayofweek.saturday and showSat
+        true
+    else if tzDayOfWeek == dayofweek.sunday and showSun
+        true
+    else
+        false
+else
+    false
+
+var float Customhigh  = na
+var float Customlow   = na
+bgColorCustom         = color.new(color.yellow,85)
+rangeColorCustom      = activeCustom[1] ? color.new(color.yellow,0): color.new(color.yellow,100)  
+
+CustomLookback=  nz(ta.barssince(ta.change(activeCustom))) + 1 
+if activeCustom
+    
+    Customhigh := nz(ta.highest(high,CustomLookback))
+    Customlow  :=nz(ta.lowest(low,CustomLookback))
+    
+if not activeCustom[1]
+    Customhigh := high[1]
+    Customlow := low[1] 
+    
+plot(displayHiLo?Customhigh:na  , color= rangeColorCustom, title= "Custom High",linewidth=2)   
+plot(displayHiLo?Customlow:na  , color= rangeColorCustom, title= "Custom Low",linewidth=2) 
+bgcolor(activeCustom and displayBG and displayCustomBG ? bgColorCustom : na, title = "Custom Session Background")

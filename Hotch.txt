@@ -1,0 +1,247 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © plewis22782
+//@version=4
+//
+study("Hotch v1.02", overlay=true)
+
+
+n = input(title="Periods", defval=2, minval=2, type=input.integer)
+
+
+// UpFractal
+bool upflagDownFrontier = true
+bool upflagUpFrontier0 = true
+bool upflagUpFrontier1 = true
+bool upflagUpFrontier2 = true
+bool upflagUpFrontier3 = true
+bool upflagUpFrontier4 = true
+
+for i = 1 to n
+    upflagDownFrontier := upflagDownFrontier and (high[n-i] < high[n])
+    upflagUpFrontier0 := upflagUpFrontier0 and (high[n+i] < high[n])
+    upflagUpFrontier1 := upflagUpFrontier1 and (high[n+1] <= high[n] and high[n+i + 1] < high[n])
+    upflagUpFrontier2 := upflagUpFrontier2 and (high[n+1] <= high[n] and high[n+2] <= high[n] and high[n+i + 2] < high[n])
+    upflagUpFrontier3 := upflagUpFrontier3 and (high[n+1] <= high[n] and high[n+2] <= high[n] and high[n+3] <= high[n] and high[n+i + 3] < high[n])
+    upflagUpFrontier4 := upflagUpFrontier4 and (high[n+1] <= high[n] and high[n+2] <= high[n] and high[n+3] <= high[n] and high[n+4] <= high[n] and high[n+i + 4] < high[n])
+flagUpFrontier = upflagUpFrontier0 or upflagUpFrontier1 or upflagUpFrontier2 or upflagUpFrontier3 or upflagUpFrontier4
+
+upFractal = (upflagDownFrontier and flagUpFrontier)
+
+
+// downFractal
+bool downflagDownFrontier = true
+bool downflagUpFrontier0 = true
+bool downflagUpFrontier1 = true
+bool downflagUpFrontier2 = true
+bool downflagUpFrontier3 = true
+bool downflagUpFrontier4 = true
+
+for i = 1 to n
+    downflagDownFrontier := downflagDownFrontier and (low[n-i] > low[n])
+    downflagUpFrontier0 := downflagUpFrontier0 and (low[n+i] > low[n])
+    downflagUpFrontier1 := downflagUpFrontier1 and (low[n+1] >= low[n] and low[n+i + 1] > low[n])
+    downflagUpFrontier2 := downflagUpFrontier2 and (low[n+1] >= low[n] and low[n+2] >= low[n] and low[n+i + 2] > low[n])
+    downflagUpFrontier3 := downflagUpFrontier3 and (low[n+1] >= low[n] and low[n+2] >= low[n] and low[n+3] >= low[n] and low[n+i + 3] > low[n])
+    downflagUpFrontier4 := downflagUpFrontier4 and (low[n+1] >= low[n] and low[n+2] >= low[n] and low[n+3] >= low[n] and low[n+4] >= low[n] and low[n+i + 4] > low[n])
+flagDownFrontier = downflagUpFrontier0 or downflagUpFrontier1 or downflagUpFrontier2 or downflagUpFrontier3 or downflagUpFrontier4
+
+downFractal = (downflagDownFrontier and flagDownFrontier)
+
+
+rsiSource = input(title="RSI Source", type=input.source, defval=close)
+rsiLength = input(title="RSI Length", type=input.integer, defval=14)
+rsiValue = rsi(rsiSource, rsiLength)
+rsiLookback = input(title="RSI Lookback", type=input.integer, defval=3)
+
+ifRsiB40 = lowest(rsiValue,rsiLookback)<= 40 and lowest(rsiValue,rsiLookback)>30
+ifRsiB30 = lowest(rsiValue,rsiLookback)<= 30 and lowest(rsiValue,rsiLookback)>20
+ifRsiB20 = lowest(rsiValue,rsiLookback)<= 20 and lowest(rsiValue,rsiLookback)>0
+
+
+
+plotB40 = ifRsiB40 and (downflagDownFrontier and flagDownFrontier)
+plotB30 = ifRsiB30 and (downflagDownFrontier and flagDownFrontier)
+plotB20 = ifRsiB20 and (downflagDownFrontier and flagDownFrontier)
+
+
+plotshape(plotB40,  location=location.belowbar, offset=-n, color=#B0FF9E, style=shape.triangleup, size = size.small )  
+plotshape(plotB30,  location=location.belowbar, offset=-n, color=#1EFF00, style=shape.triangleup, size = size.small )  
+plotshape(plotB20,  location=location.belowbar, offset=-n, color=#0A5200, style=shape.triangleup, size = size.small )  
+
+
+
+ifRsiO60 = highest(rsiValue,rsiLookback)>= 60 and highest(rsiValue,rsiLookback)<70
+ifRsiO70 = highest(rsiValue,rsiLookback)>= 70 and highest(rsiValue,rsiLookback)<80
+ifRsiO80 = highest(rsiValue,rsiLookback)>= 80 and highest(rsiValue,rsiLookback)<100
+
+
+plotO60 = ifRsiO60 and (upflagDownFrontier and flagUpFrontier)
+plotO70 = ifRsiO70 and (upflagDownFrontier and flagUpFrontier)
+plotO80 = ifRsiO80 and (upflagDownFrontier and flagUpFrontier)
+
+
+plotshape(plotO60,  location=location.abovebar, offset=-n, color=#FF9B94, style=shape.triangledown, size = size.small )
+plotshape(plotO70,  location=location.abovebar, offset=-n, color=#FF0008, style=shape.triangledown, size = size.small )
+plotshape(plotO80,  location=location.abovebar, offset=-n, color=#750004, style=shape.triangledown, size = size.small )
+
+//Vwap
+computeVWAP(src, isNewPeriod, stDevMultiplier) =>
+	var float sumSrcVol = na
+	var float sumVol = na
+    var float sumSrcSrcVol = na
+    
+	sumSrcVol := isNewPeriod ? src * volume : src * volume + sumSrcVol[1]
+	sumVol := isNewPeriod ? volume : volume + sumVol[1]
+	// sumSrcSrcVol calculates the dividend of the equation that is later used to calculate the standard deviation
+	sumSrcSrcVol := isNewPeriod ? volume * pow(src, 2) : volume * pow(src, 2) + sumSrcSrcVol[1]
+	
+	_vwap = sumSrcVol / sumVol
+	variance = sumSrcSrcVol / sumVol - pow(_vwap, 2)
+	variance := variance < 0 ? 0 : variance
+	stDev = sqrt(variance)
+	
+	lowerBand = _vwap - stDev * stDevMultiplier
+	upperBand = _vwap + stDev * stDevMultiplier
+	
+	[_vwap, lowerBand, upperBand]
+
+hideonDWM = input(false, title="Hide VWAP on 1D or Above", group="VWAP Settings")
+var anchor = input(defval = "Session", title="Anchor Period", type=input.string, 
+ options=["Session", "Week", "Month", "Quarter", "Year", "Decade", "Century", "Earnings", "Dividends", "Splits"], group="VWAP Settings")
+src = input(title = "Source", type = input.source, defval = hlc3, group="VWAP Settings")
+offset = input(0, title="Offset", group="VWAP Settings")
+
+showBands = input(true, title="Calculate Bands", group="Standard Deviation Bands Settings")
+stdevMult = input(2.0, title="Bands Multiplier", group="Standard Deviation Bands Settings")
+
+timeChange(period) =>
+	change(time(period))
+
+new_earnings = earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_on)
+new_dividends = dividends(syminfo.tickerid, dividends.gross, barmerge.gaps_on, barmerge.lookahead_on)
+new_split = splits(syminfo.tickerid, splits.denominator, barmerge.gaps_on, barmerge.lookahead_on)
+
+isNewPeriod = anchor == "Earnings" ? new_earnings :
+ anchor == "Dividends" ? new_dividends :
+ anchor == "Splits" ? new_split :
+ na(src[1]) ? true :
+ anchor == "Session" ? timeChange("D") :
+ anchor == "Week" ? timeChange("W") :
+ anchor == "Month" ? timeChange("M") :
+ anchor == "Quarter" ? timeChange("3M") :
+ anchor == "Year" ? timeChange("12M") :
+ anchor == "Decade" ? timeChange("12M") and year % 10 == 0 :
+ anchor == "Century" ? timeChange("12M") and year % 100 == 0 :
+ false
+	
+float vwapValue = na
+float std = na
+float upperBandValue = na
+float lowerBandValue = na
+
+if not (hideonDWM and timeframe.isdwm)
+    [_vwap, bottom, top] = computeVWAP(src, isNewPeriod, stdevMult)
+    vwapValue := _vwap
+    upperBandValue := showBands ? top : na
+    lowerBandValue := showBands ? bottom : na
+
+plot(vwapValue, title="VWAP", color=#2962FF, offset=offset)
+
+upperBand = plot(upperBandValue, title="Upper Band", color=color.green, offset=offset)
+lowerBand = plot(lowerBandValue, title="Lower Band", color=color.green, offset=offset)
+
+fill(upperBand, lowerBand, title="Bands Fill", color= showBands ? color.new(color.green, 95) : na)
+
+// ATR Bands
+
+atrlength = input(title="ATR Length", defval=3, minval=1)
+smoothing = input(title="ATR Smoothing", defval="RMA", options=["RMA", "SMA", "EMA", "WMA"])
+ma_function(source, atrlength) =>
+	if smoothing == "RMA"
+		rma(source, atrlength)
+	else
+		if smoothing == "SMA"
+			sma(source, atrlength)
+		else
+			if smoothing == "EMA"
+				ema(source, atrlength)
+			else
+				wma(source, atrlength)
+				
+ATR = ma_function(tr(true), atrlength)
+
+
+var bool longcondA      = na
+var bool shortcondA         = na
+var bool showLongA               = na
+var bool showShortA              = na
+var bool longcondB      = na
+var bool shortcondB         = na
+var bool showLongB               = na
+var bool showShortB              = na
+var bool showOnlyFirstSignal    = true
+
+
+/////////////////////////////////////////////////////// Long and Short Conditions /////////////////////////////////////////////////////////////
+
+//enter long trades when price is over MA and below https://www.tradingview.com/chart/NJKISpRE/#rsiOversold at bar close
+//enter short trade when price is under MA and over rsiOverbought at bar close
+
+//Get simple moving average user inputs 
+
+len1 = input(title= "MA Period", type=input.integer, defval=1000)
+//input(21, minval=1, title="Length 1", group = "Smoothed MA Inputs")
+src1 = close
+//input(close, title="Source 1", group = "Smoothed MA Inputs")
+smma1 = 0.0
+sma_1 = sma(src1, len1)
+smma1 := na(smma1[1]) ? sma_1 : (smma1[1] * (len1 - 1) + src1) / len1
+plot(smma1, color=color.white, linewidth=2, title="SMMA")
+//get user inputs
+
+
+rsiOverboughtA = input(title="RSI Overbought", type=input.integer,defval=70)
+rsiOversoldA = input(title="RSI Oversold", type=input.integer,defval=30)
+
+//Get RSI Value
+var bool wasRsiOBA = na
+var bool wasRsiOSA = na
+
+
+
+ifRsiOBA = rsiValue>= rsiOverboughtA
+ifRsiOSA = rsiValue<= rsiOversoldA
+
+
+if ifRsiOBA 
+    wasRsiOBA := true
+if ifRsiOSA 
+    wasRsiOSA := true
+    
+buySigA = downFractal and wasRsiOSA
+sellSigA = upFractal and wasRsiOBA
+plotshape(sellSigA,  location=location.top, color=color.orange, style=shape.triangledown, size = size.small )
+plotshape(buySigA,  location=location.bottom, color=color.blue, style=shape.triangleup, size = size.small )  
+
+alertcondition(sellSigA, title="Sell Signal", message= "Potential selling point")
+alertcondition(buySigA, title="Buy Signal", message= "Potential buying point")
+//entrylogic
+// long  = ifRsiOS && price over SMA
+// short = IfRsiOB && price under SMA
+
+
+longconditionA = wasRsiOSA and downFractal
+shortconditionA = wasRsiOBA and upFractal
+
+//
+
+showLongA       := showOnlyFirstSignal ? longconditionA  and not longconditionA[1]  : longcondA
+showShortA       := showOnlyFirstSignal ? shortconditionA and not shortconditionA[1] : shortcondA
+
+
+if (showLongA) 
+    wasRsiOSA := false
+    
+if (showShortA) 
+    wasRsiOBA:=false
+   
