@@ -1,0 +1,26 @@
+// This script is written as a stand alone off "BJ Reversal" to give visual indication of TSI "curling" action at the price bar level.
+// The TSI "curling" can help identify major turning points, or make viewer aware that momentum is dropping.
+// Resolution feature enabled to allow overlay for "multiple time frame analysis", which helps to see prevailing trends by using script twice at the same time and changes symbols and colours
+// eg. daily time frame with weekly arrows enabled gives the viewer insight into weekly "headwinds" or "tailwinds"
+//@version=4
+study("Bjorgum TSI Arrows", shorttitle="Bj Arrows", format=format.price, precision=4, overlay=true, resolution="")
+long = input(title="Long Length", type=input.integer, defval=25)
+short = input(title="Short Length", type=input.integer, defval=5)
+signal = input(title="Signal Length", type=input.integer, defval=14)
+price = close
+double_smooth(src, long, short) =>
+	fist_smooth = ema(src, long)
+	ema(fist_smooth, short)
+pc = change(price)
+double_smoothed_pc = double_smooth(pc, long, short)
+double_smoothed_abs_pc = double_smooth(abs(pc), long, short)
+tsi_value = 100 * (double_smoothed_pc / double_smoothed_abs_pc)
+
+data = tsi_value > tsi_value[1] and tsi_value < (ema(tsi_value, signal))
+dtat = tsi_value < tsi_value[1] and tsi_value > (ema(tsi_value, signal))
+myCol = #17ff00
+meCol = #f3ff00
+plotshape(data, style=shape.triangleup,
+                 location=location.belowbar, color=myCol)
+plotshape(dtat, style=shape.triangledown,
+                 location=location.abovebar, color=meCol)

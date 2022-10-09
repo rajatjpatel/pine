@@ -1,0 +1,262 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © HeWhoMustNotBeNamed
+
+//   __    __            __       __  __                  __       __                        __      __    __              __      _______             __    __                                          __ 
+//  /  |  /  |          /  |  _  /  |/  |                /  \     /  |                      /  |    /  \  /  |            /  |    /       \           /  \  /  |                                        /  |
+//  $$ |  $$ |  ______  $$ | / \ $$ |$$ |____    ______  $$  \   /$$ | __    __   _______  _$$ |_   $$  \ $$ |  ______   _$$ |_   $$$$$$$  |  ______  $$  \ $$ |  ______   _____  ____    ______    ____$$ |
+//  $$ |__$$ | /      \ $$ |/$  \$$ |$$      \  /      \ $$$  \ /$$$ |/  |  /  | /       |/ $$   |  $$$  \$$ | /      \ / $$   |  $$ |__$$ | /      \ $$$  \$$ | /      \ /     \/    \  /      \  /    $$ |
+//  $$    $$ |/$$$$$$  |$$ /$$$  $$ |$$$$$$$  |/$$$$$$  |$$$$  /$$$$ |$$ |  $$ |/$$$$$$$/ $$$$$$/   $$$$  $$ |/$$$$$$  |$$$$$$/   $$    $$< /$$$$$$  |$$$$  $$ | $$$$$$  |$$$$$$ $$$$  |/$$$$$$  |/$$$$$$$ |
+//  $$$$$$$$ |$$    $$ |$$ $$/$$ $$ |$$ |  $$ |$$ |  $$ |$$ $$ $$/$$ |$$ |  $$ |$$      \   $$ | __ $$ $$ $$ |$$ |  $$ |  $$ | __ $$$$$$$  |$$    $$ |$$ $$ $$ | /    $$ |$$ | $$ | $$ |$$    $$ |$$ |  $$ |
+//  $$ |  $$ |$$$$$$$$/ $$$$/  $$$$ |$$ |  $$ |$$ \__$$ |$$ |$$$/ $$ |$$ \__$$ | $$$$$$  |  $$ |/  |$$ |$$$$ |$$ \__$$ |  $$ |/  |$$ |__$$ |$$$$$$$$/ $$ |$$$$ |/$$$$$$$ |$$ | $$ | $$ |$$$$$$$$/ $$ \__$$ |
+//  $$ |  $$ |$$       |$$$/    $$$ |$$ |  $$ |$$    $$/ $$ | $/  $$ |$$    $$/ /     $$/   $$  $$/ $$ | $$$ |$$    $$/   $$  $$/ $$    $$/ $$       |$$ | $$$ |$$    $$ |$$ | $$ | $$ |$$       |$$    $$ |
+//  $$/   $$/  $$$$$$$/ $$/      $$/ $$/   $$/  $$$$$$/  $$/      $$/  $$$$$$/  $$$$$$$/     $$$$/  $$/   $$/  $$$$$$/     $$$$/  $$$$$$$/   $$$$$$$/ $$/   $$/  $$$$$$$/ $$/  $$/  $$/  $$$$$$$/  $$$$$$$/ 
+//                                                                                                                                                                                                          
+//                                                                                                                                                                                                          
+//
+//@version=5
+indicator("Discounted Price Probability", overlay=true)
+import HeWhoMustNotBeNamed/_matrix/1 as ma
+import HeWhoMustNotBeNamed/drawingutils/3 as dr
+
+reference = input.string('Inception', title='Reference', options=['Inception', 'Window'], group='Reference')
+startTime = input.time(defval=timestamp('01 Jan 2010 00:00 +0000'), title='Start Time', group='Reference')
+endTime = input.time(defval=timestamp('01 Jan 2099 00:00 +0000'), title='End Time', group='Reference')
+inDateRange = time >= startTime and time <= endTime
+
+considerEarningPrice = input.bool(true, 'Earning Price', group='Main Factors', inline='1')
+considerFundamentalsPerShare = input.bool(true, 'Fundamentals/Share', group='Main Factors', inline='1')
+considerMargins = input.bool(true, 'Margins', group='Main Factors', inline='1')
+considerReturns = input.bool(true, 'Returns', group='Main Factors', inline='2')
+considerInvertedDebtRatios = input.bool(true, 'Inverted Debt Ratios', group='Main Factors', inline='2')
+
+considerBvps = input.bool(true, 'Book Value', group='Fundamentals/Share', inline='1')
+considerEps = input.bool(true, 'Earning', group='Fundamentals/Share', inline='1')
+considerRps = input.bool(true, 'Revenue', group='Fundamentals/Share', inline='1')
+considerFcf = input.bool(true, 'FCF', group='Fundamentals/Share', inline='2')
+considerEbit = input.bool(true, 'EBIT', group='Fundamentals/Share', inline='2')
+considerEbitda = input.bool(true, 'EBITDA', group='Fundamentals/Share', inline='2')
+
+considerNetMargin = input.bool(true, 'Net', group='Margin', inline='1')
+considerGrossMargin = input.bool(true, 'Gross', group='Margin', inline='1')
+considerOperatingMargin = input.bool(true, 'Operating', group='Margin', inline='1')
+considerEBITDAMargin = input.bool(true, 'EBITDA', group='Margin', inline='1')
+considerFCFMargin = input.bool(true, 'FCF', group='Margin', inline='1')
+
+considerROA = input.bool(true, 'ROA', group='Returns', inline='1')
+considerROE = input.bool(true, 'ROE', group='Returns', inline='1')
+considerROIC = input.bool(true, 'ROIC', group='Returns', inline='1')
+
+considerDTA = input.bool(true, 'DTA', group='Inversed Debt Ratios', inline='1')
+considerLDTA = input.bool(true, 'LDTA', group='Inversed Debt Ratios', inline='1')
+considerDTE = input.bool(true, 'DTE', group='Inversed Debt Ratios', inline='1')
+considerDTR = input.bool(true, 'DTR', group='Inversed Debt Ratios', inline='1')
+considerDTEB = input.bool(true, 'DTEBITDA', group='Inversed Debt Ratios', inline='1')
+
+displayTimeframe = input.bool(true, 'Display Timeframe', group='Display')
+
+
+financialParameters = array.from('Current')
+ignoredParameters = array.new_string()
+
+fundamentalParameters = array.new_string()
+marginParameters = array.new_string()
+returnParameters = array.new_string()
+debtParameters = array.new_string()
+
+financialFactorColumns = array.from(1)
+financialFactors = array.from('Price')
+array.push(considerEarningPrice?financialParameters:ignoredParameters, 'Last Earnings')
+
+array.push(financialFactorColumns, array.get(financialFactorColumns, array.size(financialFactorColumns)-1)+array.size(financialParameters))
+
+array.push(considerFundamentalsPerShare and considerBvps?fundamentalParameters:ignoredParameters, 'Book Value')
+array.push(considerFundamentalsPerShare and considerEps?fundamentalParameters:ignoredParameters, 'Earnings')
+array.push(considerFundamentalsPerShare and considerRps?fundamentalParameters:ignoredParameters, 'Revenue')
+array.push(considerFundamentalsPerShare and considerFcf?fundamentalParameters:ignoredParameters, 'FCF')
+array.push(considerFundamentalsPerShare and considerEbit?fundamentalParameters:ignoredParameters, 'EBIT')
+array.push(considerFundamentalsPerShare and considerEbitda?fundamentalParameters:ignoredParameters, 'EBITDA')
+
+if(array.size(fundamentalParameters) != 0)
+    array.concat(financialParameters, fundamentalParameters)
+    array.push(financialFactorColumns, array.get(financialFactorColumns, array.size(financialFactorColumns)-1)+array.size(fundamentalParameters))
+    array.push(financialFactors, 'Fundamentals/Share')
+
+array.push(considerMargins and considerNetMargin?marginParameters:ignoredParameters, 'Net')
+array.push(considerMargins and considerGrossMargin?marginParameters:ignoredParameters, 'Gross')
+array.push(considerMargins and considerOperatingMargin?marginParameters:ignoredParameters, 'Operating')
+array.push(considerMargins and considerEBITDAMargin?marginParameters:ignoredParameters, 'EBITDA')
+array.push(considerMargins and considerFCFMargin?marginParameters:ignoredParameters, 'FCF')
+
+if(array.size(marginParameters) != 0)
+    array.concat(financialParameters, marginParameters)
+    array.push(financialFactorColumns, array.get(financialFactorColumns, array.size(financialFactorColumns)-1)+array.size(marginParameters))
+    array.push(financialFactors, 'Margin')
+    
+array.push(considerReturns and considerROA?returnParameters:ignoredParameters, 'ROA')
+array.push(considerReturns and considerROE?returnParameters:ignoredParameters, 'ROE')
+array.push(considerReturns and considerROIC?returnParameters:ignoredParameters, 'ROIC')
+
+if(array.size(returnParameters) != 0)
+    array.concat(financialParameters, returnParameters)
+    array.push(financialFactorColumns, array.get(financialFactorColumns, array.size(financialFactorColumns)-1)+array.size(returnParameters))
+    array.push(financialFactors, 'Returns')
+    
+array.push(considerInvertedDebtRatios and considerDTA?debtParameters:ignoredParameters, 'Assets')
+array.push(considerInvertedDebtRatios and considerLDTA?debtParameters:ignoredParameters, 'Assets(Long Term)')
+array.push(considerInvertedDebtRatios and considerDTE?debtParameters:ignoredParameters, 'Equity')
+array.push(considerInvertedDebtRatios and considerDTR?debtParameters:ignoredParameters, 'Revenue')
+array.push(considerInvertedDebtRatios and considerDTEB?debtParameters:ignoredParameters, 'EBITDA')
+
+if(array.size(debtParameters) != 0)
+    array.concat(financialParameters, debtParameters)
+    array.push(financialFactorColumns, array.get(financialFactorColumns, array.size(financialFactorColumns)-1)+array.size(debtParameters))
+    array.push(financialFactors, 'Inverted Debt Ratios')
+    
+f_getFinancials(financial_id, period) =>
+    request.financial(syminfo.tickerid, financial_id, period)
+f_getOptimalFinancialBasic(financial_id) =>
+    f_getFinancials(financial_id, syminfo.currency == 'USD' ? 'FQ' : 'FY')
+
+tso = request.financial(syminfo.tickerid, 'TOTAL_SHARES_OUTSTANDING', 'FQ')
+bvps = request.financial(syminfo.tickerid, 'BOOK_VALUE_PER_SHARE', 'FQ')
+eps = request.financial(syminfo.tickerid, 'EARNINGS_PER_SHARE_BASIC', 'TTM')
+rps = request.financial(syminfo.tickerid, 'TOTAL_REVENUE', 'TTM') / tso
+
+ebitda = request.financial(syminfo.tickerid, 'EBITDA', 'TTM') / tso
+ebit = f_getOptimalFinancialBasic('EBIT') / tso
+fcf = f_getOptimalFinancialBasic('FREE_CASH_FLOW') / tso
+//currentassets = f_getOptimalFinancialBasic("NCAVPS_RATIO")
+
+nmargin = f_getOptimalFinancialBasic('NET_MARGIN')
+gmargin = f_getOptimalFinancialBasic('GROSS_MARGIN')
+omargin = f_getOptimalFinancialBasic('OPERATING_MARGIN')
+emargin = f_getOptimalFinancialBasic('EBITDA_MARGIN')
+fmargin = f_getOptimalFinancialBasic('FREE_CASH_FLOW_MARGIN')
+
+roa = f_getOptimalFinancialBasic('RETURN_ON_ASSETS')
+roe = f_getOptimalFinancialBasic('RETURN_ON_EQUITY')
+roic = f_getOptimalFinancialBasic('RETURN_ON_INVESTED_CAPITAL')
+
+ldta = 1 / f_getOptimalFinancialBasic('LONG_TERM_DEBT_TO_ASSETS')
+dta = 1 / f_getOptimalFinancialBasic('DEBT_TO_ASSET')
+dte = 1 / f_getOptimalFinancialBasic('DEBT_TO_EQUITY')
+dtr = 1 / f_getOptimalFinancialBasic('DEBT_TO_REVENUE')
+dteb = 1 / f_getOptimalFinancialBasic('DEBT_TO_EBITDA')
+
+NUMBER_OF_ITEMS = 20
+
+earnings = request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_off, true)
+
+getPercentile(value, defaultToZero = true)=>
+    var arr = array.new_float()
+    array.unshift(arr, value)
+    array.size(arr)==1? 100.0 : array.percentrank(arr, 0)
+
+getPercentileDrawdown(value, defaultToZero = true)=>
+    var arr = array.new_float()
+    sIndex = array.binary_search_rightmost(arr, value)
+    array.insert(arr, sIndex, value)
+    index = defaultToZero? array.indexof(arr, value) : array.lastindexof(arr, value)
+    percentile = (index+1)*100/array.size(arr)
+    percentile
+    
+f_calculate_drawdown_stats(value) =>
+    var float ath = na
+    var float drawdownPercentile = 0
+    var drawdown = 0.0
+    var percentile = 0.0
+    if(not na(value))
+        percentile := getPercentile(value)
+        ath := math.max(value, nz(ath, value))
+        drawdown := math.round(math.abs(ath - value)*100 / math.max(math.abs(ath), math.abs(value)))
+        drawdownPercentile := getPercentileDrawdown(drawdown)
+    
+    percentileColor = color.from_gradient(percentile, 0, 100, color.red, color.green)
+    drawdownColor = color.from_gradient(drawdownPercentile, 0, 100, color.green, color.red)
+    
+    [array.from(value, ath, percentile, drawdown, drawdownPercentile),
+         array.from(percentileColor, percentileColor, percentileColor, drawdownColor, drawdownColor)]
+
+comparitive_drawdown(value, priceDrawdown, pricePercentile, statsMatrix, colorMatrix, condition=true) =>
+    if(condition)
+        [statsArray, colorArray] = f_calculate_drawdown_stats(value)
+        drawdownDiff = priceDrawdown - array.get(statsArray, 3)
+        percentileDiff = array.get(statsArray, 2)-pricePercentile
+        diffDrawdownPercentile = getPercentile(drawdownDiff)
+        diffPricePercentile = getPercentile(percentileDiff)
+        array.push(statsArray, diffPricePercentile)
+        array.push(statsArray, diffDrawdownPercentile)
+        array.push(colorArray, color.from_gradient(diffPricePercentile, 0, 100, color.red, color.green))
+        array.push(colorArray, color.from_gradient(diffDrawdownPercentile, 0, 100, color.red, color.green))
+        ma.push(statsMatrix, statsArray, NUMBER_OF_ITEMS)
+        ma.push(colorMatrix, colorArray, NUMBER_OF_ITEMS)
+
+if reference == 'Inception' or inDateRange
+    if displayTimeframe
+        dr.runTimer()
+    [priceDrawdownStats, priceDrawdownColors] = f_calculate_drawdown_stats(high)
+    drawdown = array.get(priceDrawdownStats, 3)
+    percentile = array.get(priceDrawdownStats, 2)
+    var percentileArray = array.new_float(20, 0)
+    var diffArray = array.new_float(20, 0)
+    var drawdownArray = array.new_float(20, 0)
+    var matrix<float> statMatrix = matrix.new<float>()
+    var matrix<color> colorMatrix = matrix.new<color>()
+    
+    statParameters = array.from("Value", "ATH", "Percentile", "Drawdown", "Drawdown\nPercentile", "Differential Percentile\n(Absolute)", "Differential Percentile\n(Drawdown)")
+    if(not na(earnings))
+        ma.clear(statMatrix)
+        ma.clear(colorMatrix)
+        comparitive_drawdown(close, drawdown, percentile, statMatrix, colorMatrix, considerEarningPrice)
+        comparitive_drawdown(bvps, drawdown, percentile, statMatrix, colorMatrix, considerFundamentalsPerShare and considerBvps)
+        comparitive_drawdown(eps, drawdown, percentile, statMatrix, colorMatrix, considerFundamentalsPerShare and considerEps)
+        comparitive_drawdown(rps, drawdown, percentile, statMatrix, colorMatrix, considerFundamentalsPerShare and considerRps)
+        comparitive_drawdown(fcf, drawdown, percentile, statMatrix, colorMatrix, considerFundamentalsPerShare and considerFcf)
+        comparitive_drawdown(ebit, drawdown, percentile, statMatrix, colorMatrix, considerFundamentalsPerShare and considerEbit)
+        comparitive_drawdown(ebitda, drawdown, percentile, statMatrix, colorMatrix, considerFundamentalsPerShare and considerEbitda)
+        comparitive_drawdown(nmargin, drawdown, percentile, statMatrix, colorMatrix, considerMargins and considerNetMargin)
+        comparitive_drawdown(gmargin, drawdown, percentile, statMatrix, colorMatrix, considerMargins and considerGrossMargin)
+        comparitive_drawdown(omargin, drawdown, percentile, statMatrix, colorMatrix, considerMargins and considerOperatingMargin)
+        comparitive_drawdown(emargin, drawdown, percentile, statMatrix, colorMatrix, considerMargins and considerEBITDAMargin)
+        comparitive_drawdown(fmargin, drawdown, percentile, statMatrix, colorMatrix, considerMargins and considerFCFMargin)
+        comparitive_drawdown(roa, drawdown, percentile, statMatrix, colorMatrix, considerReturns and considerROA)
+        comparitive_drawdown(roe, drawdown, percentile, statMatrix, colorMatrix, considerReturns and considerROE)
+        comparitive_drawdown(roic, drawdown, percentile, statMatrix, colorMatrix, considerReturns and considerROIC)
+        comparitive_drawdown(dta, drawdown, percentile, statMatrix, colorMatrix, considerInvertedDebtRatios and considerDTA)
+        comparitive_drawdown(ldta, drawdown, percentile, statMatrix, colorMatrix, considerInvertedDebtRatios and considerLDTA)
+        comparitive_drawdown(dte, drawdown, percentile, statMatrix, colorMatrix, considerInvertedDebtRatios and considerDTE)
+        comparitive_drawdown(dtr, drawdown, percentile, statMatrix, colorMatrix, considerInvertedDebtRatios and considerDTR)
+        comparitive_drawdown(dteb, drawdown, percentile, statMatrix, colorMatrix, considerInvertedDebtRatios and considerDTEB)
+
+    percentileDAvg = matrix.columns(statMatrix) > 6 ? array.avg(matrix.col(statMatrix, 6)) : na
+    percentilePAvg = matrix.columns(statMatrix) > 5 ? array.avg(matrix.col(statMatrix, 5)) : na
+
+    if(barstate.islastconfirmedhistory)
+
+        stats = table.new(position.middle_center, matrix.columns(statMatrix)+2, matrix.rows(statMatrix)+3, border_width=2)
+        table.clear(stats, 0, 0, matrix.columns(statMatrix)+1, matrix.rows(statMatrix)+2)
+        
+        
+        table.cell(stats, 0, 0, "P " +str.tostring(percentilePAvg, format.percent), bgcolor=color.from_gradient(percentilePAvg, 0, 100, color.red, color.green),
+                                 text_color=color.white, text_size=size.huge, tooltip='Probability based on absolute percentile')
+        table.cell(stats, 0, 1, "D " +str.tostring(percentileDAvg, format.percent), bgcolor=color.from_gradient(percentileDAvg, 0, 100, color.red, color.green),
+                                 text_color=color.white, text_size=size.huge, tooltip='Probability based on drawdown percentile')
+        for i=0 to array.size(financialFactors)-1
+            table.cell(stats, 0, array.get(financialFactorColumns, i)+1, array.get(financialFactors, i), bgcolor=color.maroon, text_color=color.white, text_size=size.small)
+            table.merge_cells(stats, 0, array.get(financialFactorColumns, i)+1, 0, array.get(financialFactorColumns, i+1))
+
+        table.merge_cells(stats, 0, 0, 1, 0)
+        table.merge_cells(stats, 0, 1, 1, 1)
+        
+        for i=0 to array.size(financialParameters)-1
+            table.cell(stats, 1, i+2, array.get(financialParameters, i), bgcolor=color.teal, text_color=color.white, text_size=size.small)
+        
+        for j=0 to array.size(priceDrawdownStats)-1
+            table.cell(stats, j+2, 2, str.tostring(array.get(priceDrawdownStats,j), j<2? '#.00' : format.percent), bgcolor=color.blue, text_color=color.white, text_size=size.small)
+        table.cell(stats, array.size(priceDrawdownStats)+2, 2,  '', bgcolor=color.blue, text_color=color.white, text_size=size.small)
+        table.cell(stats, array.size(priceDrawdownStats)+3, 2, '', bgcolor=color.blue, text_color=color.white, text_size=size.small)
+        for j=0 to array.size(statParameters)-1
+            table.cell(stats, j+2, 1, array.get(statParameters, j), bgcolor=color.maroon, text_color=color.white, text_size=size.small)
+        for i=0 to matrix.rows(statMatrix)==0? na : matrix.rows(statMatrix)-1
+            for j=0 to matrix.columns(statMatrix)-1
+                table.cell(stats, j+2,i+2+1, str.tostring(matrix.get(statMatrix,i,j), j<2? '#.00' : format.percent), bgcolor=matrix.get(colorMatrix,i,j), text_color=color.white, text_size=size.small)

@@ -1,0 +1,38 @@
+//@version=5
+indicator(title="Directional Movement Index", shorttitle="DMI", format=format.price, precision=4, timeframe="", timeframe_gaps=true)
+
+
+
+lensig = input.int(14, title="ADX Smoothing", minval=1, maxval=50)
+len = input.int(14, minval=1, title="DI Length")
+up = ta.change(high)
+down = -ta.change(low)
+plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)
+minusDM = na(down) ? na : (down > up and down > 0 ? down : 0)
+trur = ta.rma(ta.tr, len)
+plus = fixnan(100 * ta.rma(plusDM, len) / trur)
+minus = fixnan(100 * ta.rma(minusDM, len) / trur)
+sum = plus + minus
+adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), lensig)
+plot(adx, color=#F50057, title="ADX")
+plot(plus, color=#2962FF, title="+DI")//needs to be formed as a new variable for the fill
+plot(minus, color=#FF6D00, title="-DI")
+
+
+
+
+//////////////color gradients need to be below the dmi because the information the color gradients use needs to be ABOVE the gradient in the code. 
+//same with any variable , the definition of the variable needs to be above where a functionn uses it in the code. 
+var color i_c_bull = #008000ff
+var color i_c_bear = #FF0000ff
+
+f_c_gradientRelative(_source, _min, _max, _c_bear, _c_bull) =>
+    var float _center = _min + (_max - _min) / 2
+    color _return = _source >= _center ? 
+      color.from_gradient(_source, _center, _max, color.new(_c_bull, 100), color.new(_c_bull, 0)) : 
+      color.from_gradient(_source, _min, _center, color.new(_c_bear, 0), color.new(_c_bear, 100))
+float c5= plus-minus//i forgot to tell you this variable needed to be changed 
+p_5a=plot(plus, "+DI",  i_c_bull)////you had the color in the first slot and didn't have the variable value assigned to the function
+p_5b=plot(minus, "-DI", i_c_bear)
+color c_5 = f_c_gradientRelative(c5, -50,50, i_c_bear, i_c_bull)
+fill(p_5a, p_5b, c_5, title = "5. Relative fill")

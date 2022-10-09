@@ -1,0 +1,60 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RajeshMoriyani
+//@version=5
+indicator("RSI+EMAs for Bootsie Strategy", shorttitle="RSI+EMAs - Boostie Strat.")
+
+RSI_SETTINGS = "RSI Settings"
+rsiLengthInput = input.int(500, minval=1, title="RSI Length", group=RSI_SETTINGS)
+rsiSourceInput = input.source(close, title="Source for RSI", group=RSI_SETTINGS)
+
+EMA_SETTINGS = "EMA Settings"
+maSourceInput = input.source(hlcc4, title="Source for EMAs", group=EMA_SETTINGS)
+maLengthInput1 = input.int(1, title="EMA1", group=EMA_SETTINGS)
+maLengthInput2 = input.int(2, title="EMA2", group=EMA_SETTINGS)
+maLengthInput3 = input.int(3, title="EMA3", group=EMA_SETTINGS)
+maLengthInput4 = input.int(4, title="EMA4", group=EMA_SETTINGS)
+maLengthInput5 = input.int(5, title="EMA5", group=EMA_SETTINGS)
+
+PRICE_PIVOTS = "Price High Low Pivots"
+lookbackLength  = input.int(150, "Lookback Period", minval = 10, maxval = 500, group = PRICE_PIVOTS) // max bars to lookback
+
+H_LINES = "Threshold Levels"
+h_line_color = input(color.new(color.white, 70), "", inline="HLines", group=H_LINES)
+hLine1 = input(85, "Level-1", inline="HLines1", group=H_LINES)
+hLine2 = input(70, "Level-2", inline="HLines2", group=H_LINES)
+hLine3 = input(50, "Level-3", inline="HLines3", group=H_LINES)
+hLine4 = input(20, "Level-4", inline="HLines4", group=H_LINES)
+hLine5 = input(10, "Level-5", inline="HLines5", group=H_LINES)
+
+line1 = hline(hLine1, "", color=(hLine1 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+line2 = hline(hLine2, "", color=(hLine2 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+line3 = hline(hLine3, "", color=(hLine3 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+line4 = hline(hLine4, "", color=(hLine4 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+line5 = hline(hLine5, "", color=(hLine5 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+
+//RSI
+rsi = ta.rsi(rsiSourceInput, rsiLengthInput)
+plot(rsi,"RSI", color= color.yellow, linewidth=2)
+
+//High+Low Pivot Levels for finding Price Range
+pivotHigh    = ta.highest(maSourceInput, lookbackLength)
+pivotLow     = ta.lowest(maSourceInput , lookbackLength)
+
+//Scaling for EMAs
+var scaleLow = 0.0
+var scaleHigh = 100.0
+scaledValue = scaleLow + (maSourceInput - pivotLow) * (scaleHigh - scaleLow) / (pivotHigh - pivotLow)
+
+//EMAs (scaled)
+ma1 = ta.ema(scaledValue, maLengthInput1)
+ma2 = ta.ema(scaledValue, maLengthInput2)
+ma3 = ta.ema(scaledValue, maLengthInput3)
+ma4 = ta.ema(scaledValue, maLengthInput4)
+ma5 = ta.ema(scaledValue, maLengthInput5)
+
+plot(ma1, "Scaled EMA", color= color.lime)
+plot(ma2, "Scaled EMA2", color= color.teal)
+plot(ma3, "Scaled EMA3", color= color.orange)
+plot(ma4, "Scaled EMA4", color= color.fuchsia)
+plot(ma5, "Scaled EMA5", color= color.red)
+

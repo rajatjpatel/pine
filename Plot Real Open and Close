@@ -1,0 +1,277 @@
+// This source code provided free and open-source as defined by the terms of the Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/)
+// with the following additional requirements:
+//
+// 1. Citations for sources and references must be maintained and updated when appropriate
+// 2. Links to strategy references included in indicator tooptips and/or alerts should be retained to give credit to the original source
+//             while also providing a freely available source of information on proper use and interpretation
+//
+// Author:  SamAccountX
+//
+// The intent of this indicator is to provide a way to plot actual-price open and close values when using non-standard chart types (e.g. Heiken Ashi or Renko).
+// The user will have 2 primary methods of displaying this information - either using a bar or hollow candle display method, or printing distinct shapes
+// on the candle for open and close prices (which can be independently enabled or disabled).
+//
+// References:
+//    1. Forked from my own Smoothed HA Candles indicator:  https://www.tradingview.com/script/1qDfPom0-Smoothed-Heiken-Ashi-SamX/
+//
+// @version=5
+indicator(title='Plot Real Open and Close - SamX', shorttitle='O & C Overlay', overlay=true)
+
+// Inputs
+// Inputs group 1 - Timeframe Settings
+g_TimeframeSettings = 'Timeframe Settings'
+time_frame = input.timeframe(title='Timeframe for Open and Close data points', defval='', group=g_TimeframeSettings, tooltip='Select the timeframe to use for calculating the actual ' +
+                 'price open and close values.  The default value is to use the current chart timeframe, but altering this will allow you to have the indicator reflect a higher or lower timeframe. \n\n' +
+                 'Note: Selecting a lower timeframe than the current chart timeframe may not result in more precise values as the display will still be limited to the current timeframe resolution.')
+
+// Inputs group 2 - Display Options
+g_CandleDisplayOpts = 'Candle/Bar Display Options'
+showAsBarCandle = input.bool(title='Show open/close as a Bar or Candle', defval=true, group=g_CandleDisplayOpts, tooltip='Select (default) to show actual price open and close as a Bar or ' +
+                 'Hollow Candle instead of discrete plot symbols (e.g. dots or diamonds).  \n\n' +
+                 'If you wish to see both Open and Close, this is recommended as it makes the on-chart display far more intuitive by more closely matching normal bar/candle charts.')
+plotStyle = input.string(title='Plot Style', group=g_CandleDisplayOpts, options=['Hollow Candle','Bar'], defval='Bar', tooltip='Choose which type of plot to use for displaying open and close values.')
+
+// Inputs group 3 - Additional options for Bar/Candle display option
+colorBullish = input.color(title='Color for bullish candle (Close > Open)', defval=color.rgb(255, 255, 255, 0), tooltip='Select the color to use to denote a bullish candle (where price closed above the open). \n\n' +
+                 'Note: Any changes to the "Style" tab will override this setting.  Actual doji candles (Open == Close) inherit the color of the previous candle.')
+colorBearish = input.color(title='Color for bearish candle (Close < Open)', defval=color.rgb(255, 0, 255, 0), tooltip='Select the color to use to denote a bearish candle (where price closed below the open). \n\n' +
+                 'Note: Any changes to the "Style" tab will override this setting.  Actual doji candles (Open == Close) inherit the color of the previous candle.')
+
+// Inputs group 4 - Additional Options for Symbols display option
+g_SymbolDisplayOpts = 'Symbol Display Options'
+// For simplicity, we're going to use "ambiguous" symbol shapes like diamonds, circles, squares, etc. so that we don't have to mess around with directional bias with these (like triangle-up vs triangle-down)
+showOpen = input.bool(title='Show open price symbol', group=g_SymbolDisplayOpts, defval=true, inline='showSymForPriceType')
+showClose = input.bool(title='Show close price symbol', group=g_SymbolDisplayOpts, defval=true, inline='showSymForPriceType', tooltip='Select to show/hide symbols for open and close, respectively.')
+symbol = input.string(title='Symbol to use', group=g_SymbolDisplayOpts, defval='Cross', inline='Symbol', options=['X-Cross','Cross','Circle','Square','Diamond'])
+symbolSize = input.string(title='Symbol size', group=g_SymbolDisplayOpts, inline='Symbol', options=['Auto','Tiny','Small','Normal','Large','Huge'], defval='Auto', tooltip='Select the symbol type and size for displaying ' +
+                 'discrete symbols for open and close.  \n\n' +
+                 'Note: Settings here only apply if "Show open/close as a Bar or Candle" is NOT checked! \n\n' +
+                 'Note: Any changes to the "Style" tab will override this setting.')
+symColorOpen = input.color(title='Symbol open color', inline='symColor', defval=color.rgb(255, 255, 255, 0), group=g_SymbolDisplayOpts)
+symColorClose = input.color(title='Symbol close color', inline='symColor', defval=color.rgb(255, 0, 255, 0), group=g_SymbolDisplayOpts, tooltip='Select the colors to use for the symbol to denote the open and close values. \n\n' +
+                 'Note: Settings here only apply if "Show open/close as a Bar or Candle" is NOT checked! \n\n' +
+                 'Note: Any changes to the "Style" tab will override this setting.')
+
+// Inputs group 5 - Other
+showLivePrice = input.bool(title='Show line for current real price', group='Other Settings', defval=true, tooltip='If enabled, a horizontal line will be drawn on the chart corresponding to the live close price.')
+extendLivePriceLeft = input.bool(title='Extend live price line to the left indefinitely', defval=false, tooltip='If enabled, the live-price line will be extended to the left indefinitely ("forever")')
+
+// Begin active processing code...
+
+// Explicitly define our ticker to help ensure that we're always getting ACTUAL price instead of relying on the input
+// ticker info and input vars (as they tend to inherit the type from what's displayed on the current chart)
+realPriceTicker = ticker.new(prefix=syminfo.prefix, ticker=syminfo.ticker)
+
+// This MAY be unnecessary, but in testing I've found some oddities when trying to use this on varying chart types
+// like on the HA chart, where the source referece for the price skews to the values for the current chart type
+// instead of the expected pure-price values.  For example, the 'source=close' reference - 'close' would be actual price
+// close on a normal candlestick chart, but would be the HA close on the HA chart.
+actualOpen = request.security(symbol=realPriceTicker, timeframe=time_frame, expression=open, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+actualClose = request.security(symbol=realPriceTicker, timeframe=time_frame, expression=close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+// These 2 below aren't needed for this indicator, so we're commenting them out simply to reduce execution time.  I'm not deleting them altogether just in case
+// there's some point in the future that I may want to add them back in
+// actualHigh = request.security(symbol=realPriceTicker, timeframe=time_frame, expression=high, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+// actualLow = request.security(symbol=realPriceTicker, timeframe=time_frame, expression=low, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+
+// Map our raw price values to the plot variables.  Since we're not interested in high and low values in this case,
+// we'll shortcut the plotcandle function by setting the high = open and low = close.  This prevents any potential for
+// printing wicks while still being able to properly coloring our candles based on open/close price movement direction.
+openToPlot = actualOpen
+closeToPlot = actualClose
+highToPlot = actualOpen
+lowToPlot = actualClose
+
+// Since we will want to color the candle to distinguish between open > close (red) and open < close (green),
+// we will pre-define our candle color before plotting the actual candle to simplify the 'plotcandle' function's color input.
+// To help simplify this a bit, we're going to default the candle wick colors to match the candle body's color.  Users
+// should be able to override these defaults in the "Style" configuration tab to their own liking.
+//
+// We'll even get fancy and if the current candle is an EXACT doji (open == close), use the previous candle's color
+// The logical ordering of this conditional goes like this...
+//      First check if the close is greater than the open.  If so, return green.
+//      If not, check if the close is less than the open.  If so, return red.
+//      If not (which will only occur if the open and close are exactly equal), return the
+//          color used on the previous candle.
+//
+// Note:  Since we need to take into account the possibility that there is no previous candle, we'll defensively-code
+//          this so that we pre-assign a color (Black and transparent) to our color variable to use as a fail-safe.
+//
+// While this is an extreme edge-case, we also want to try and account for the possibility that a pure doji is the
+// first candle to print.  Since it's not easy to check a previous candle's actual color value, we'll work around
+// this by adding another conditional check to see if the previous candle had a value for 'smoothedHAOpen'
+//
+// Like Arty, I prefer colors that really pop, so that's what we're going to use...
+//
+// Final note: The 'candleColor' below will only really apply if the "showAsBarCandle" input is true (checked).
+// Otherwise, this variable will be ignored and we will use the separate color configurations for the shape colors.
+candleColor = color.rgb(0, 0, 0, 100)
+candleColor := (closeToPlot > openToPlot) ? colorBullish :
+     (closeToPlot < openToPlot) ? colorBearish : candleColor[1]
+
+// Now onto the plotting fun...
+//
+// Since TV has an odd quirk where plot functions can't be nested inside conditionals, we need to get a bit creative...
+// To handle this, we'll actually call ALL of the possible plot methods, and use conditionals INSIDE the function calls
+// so that we will use 'na' values for all plot functions EXCEPT the ONE that the user has selected via inputs...
+//
+// I'm not a fan of this approach, but at the moment I can't think of a better option...
+//
+// To help simplify the nesting a bit, we'll pre-define our conditional variables by initializing them as false
+// and then using 'if-then' statements and mutable assignment operators to flip the correct one to 'true'.  This
+// will then allow us to easily inject an in-line conditional statement into the plot functions in an easily-readable format
+showBar = false
+showCandle = false
+showOpenSymbol = false
+showCloseSymbol = false
+if (showAsBarCandle)
+    // User opted to display as a bar/candle, so identify which they selected and plot it
+    if (plotStyle == 'Bar')
+        showBar := true
+    else if (plotStyle == 'Hollow Candle')
+        showCandle := true
+    else
+        // Should be impossible to hit this as-is...  Only way is if someone added another option to the input drop-down
+        // but failed to add a corresponding plot in this block...
+        na
+else
+    // If this block is executed, the user has un-checked the 'Show open/close as a Bar or Candle' setting,
+    // so we need to check BOTH the showOpenSymbol and showCloseSymbol in this block
+    if (showClose)
+        showCloseSymbol := true
+    if (showOpen)
+        showOpenSymbol := true
+
+// Now that that mess is out of the way, we will do all of our different plot function calls using our pre-estabilished control variables above...
+//
+// A note here is that if you pass 'na' to the arguments, it will result in not printing...  Handy trick to remember...
+plotbar(open=showBar ? openToPlot : na, high=showBar ? highToPlot : na, low=showBar ? lowToPlot : na, close=showBar ? closeToPlot : na, title='Open/Close Bars', color=candleColor, editable=false)
+plotcandle(open=showCandle ? openToPlot : na, high=showCandle ? highToPlot : na, low=showCandle ? lowToPlot : na, close=showCandle ? closeToPlot : na, title="Open/Close Hollow Candles", color=na, wickcolor=na, bordercolor=candleColor, editable=false)
+
+// It is an unfortunate fact in TV that if you set a variable to a constant (enum in programming lingo), you cannot later update the value
+// to a different constant of the same type.  Attempting to do so will instead result in the type changing from 'const string' to  'simple string',
+// which causes it to no longer properly work in functions where the value is expected to be a 'const string'.
+//
+// This means that we're going to have to get creative with pre-setting our control vars and doing several redundant plotshape calls with the only real
+// difference being the size param...  Not a fan of this, but sometimes you just don't have a choice...
+//
+// We will do our best to use line continuation and indentation to help keep this readable, although it's going to get really long really fast...
+
+// Plots for Open symbol
+//
+// Size: Auto
+plotshape(series=showOpenSymbol and symbolSize == 'Auto' ? openToPlot : na, title="Open Price", location=location.absolute, color=symColorOpen, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.auto)
+// Size: Tiny
+plotshape(series=showOpenSymbol and symbolSize == 'Tiny' ? openToPlot : na, title="Open Price", location=location.absolute, color=symColorOpen, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.tiny)
+// Size: Small
+plotshape(series=showOpenSymbol and symbolSize == 'Small' ? openToPlot : na, title="Open Price", location=location.absolute, color=symColorOpen, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.small)
+// Size: Normal
+plotshape(series=showOpenSymbol and symbolSize == 'Normal' ? openToPlot : na, title="Open Price", location=location.absolute, color=symColorOpen, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.normal)
+// Size: Large
+plotshape(series=showOpenSymbol and symbolSize == 'Large' ? openToPlot : na, title="Open Price", location=location.absolute, color=symColorOpen, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.large)
+// Size: Huge
+plotshape(series=showOpenSymbol and symbolSize == 'Huge' ? openToPlot : na, title="Open Price", location=location.absolute, color=symColorOpen, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.huge)
+
+// Plots for Close symbol
+//
+// Size: Auto
+plotshape(series=showCloseSymbol and symbolSize == 'Auto' ? closeToPlot : na, title="Close Price", location=location.absolute, color=symColorClose, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.auto)
+// Size: Tiny
+plotshape(series=showCloseSymbol and symbolSize == 'Tiny' ? closeToPlot : na, title="Close Price", location=location.absolute, color=symColorClose, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.tiny)
+// Size: Small
+plotshape(series=showCloseSymbol and symbolSize == 'Small' ? closeToPlot : na, title="Close Price", location=location.absolute, color=symColorClose, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.small)
+// Size: Normal
+plotshape(series=showCloseSymbol and symbolSize == 'Normal' ? closeToPlot : na, title="Close Price", location=location.absolute, color=symColorClose, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.normal)
+// Size: Large
+plotshape(series=showCloseSymbol and symbolSize == 'Large' ? closeToPlot : na, title="Close Price", location=location.absolute, color=symColorClose, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.large)
+// Size: Huge
+plotshape(series=showCloseSymbol and symbolSize == 'Huge' ? closeToPlot : na, title="Close Price", location=location.absolute, color=symColorClose, editable=false,
+ style=(symbol == 'X-Cross') ? shape.xcross :
+     (symbol == 'Cross') ? shape.cross :
+         (symbol == 'Circle') ? shape.circle :
+             (symbol == 'Square') ? shape.square :
+                 (symbol == 'Diamond') ? shape.diamond :
+ na,
+ size=size.huge)
+
+// Adding one final potential plot for current real price
+if (showLivePrice)
+    realPriceLine = line.new(bar_index[15], closeToPlot, bar_index, closeToPlot, xloc.bar_index, extendLivePriceLeft ? extend.both : extend.right, candleColor, line.style_dotted)
+    line.delete(realPriceLine[1])

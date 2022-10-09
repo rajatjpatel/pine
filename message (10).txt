@@ -1,0 +1,131 @@
+This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Hotchachachaaa
+
+//@version=5
+//// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// ©Hotchachachaaa
+//@version=5
+MAX_LABELS = 100
+strategy("Hotch break strat", overlay=true, pyramiding=20, default_qty_type= strategy.percent_of_equity, default_qty_value = 1, calc_on_every_tick=true, slippage=0,commission_type=strategy.commission.percent,commission_value=0.014,max_labels_count = MAX_LABELS)
+strat_dir_input = input.string(title="Strategy Direction", defval="all", options=["long", "short", "all"])
+strat_dir_value = strat_dir_input == "long" ? strategy.direction.long : strat_dir_input == "short" ? strategy.direction.short : strategy.direction.all
+strategy.risk.allow_entry_in(strat_dir_value)
+//////////////////////////////////////////////////////////////////////
+ATRBandsOO = input.bool(title="ATR Bands", group="Features", defval= true)
+SessionOO = input.bool(title="Session", group="Features", defval= true)
+TSOO = input.bool(title="Trend SNEK", group="Features", defval= true)
+MA1OO = input.bool(title="MA 1", group="Features", defval= true)
+MA2OO = input.bool(title="MA 2", group="Features", defval= true)
+MA3OO = input.bool(title="MA 3", group="Features", defval= true)
+TPSLOO = input.bool(title="TP/SL", group="Features", defval= true)
+
+string sessionInput = input.session("0600-1800", "Session")
+string daysInput = input.string("1234567", tooltip = "1 = Sunday, 7 = Saturday")
+sessionString = sessionInput + ":" + daysInput
+inSession = not na(time(timeframe.period, sessionString))
+bgcolor(inSession ? color.new(color.silver,85) : na)
+
+// Testing Start End Dates
+
+testStartYear = input(2020, "Backtest Start Year")
+testStartMonth = input(10, "Backtest Start Month")
+testStartDay = input(1, "Backtest Start Day")
+testPeriodStart = timestamp(testStartYear,testStartMonth,testStartDay,0,0)
+
+//Stop date if you want to use a specific range of dates
+
+testStopYear = input(2030, "Backtest Stop Year")
+testStopMonth = input(12, "Backtest Stop Month")
+testStopDay = input(30, "Backtest Stop Day")
+testPeriodStop = timestamp(testStopYear,testStopMonth,testStopDay,0,0)
+
+
+testPeriod() =>
+    time >= testPeriodStart and time <= testPeriodStop ? true : false
+ 
+ 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////ADD INDICATOR CODE HERE.  
+
+
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// TP and SL ATR ,group= "Take Profit and Stop Loss"
+atrPeriodsltp = input.int(title = "ATR Period for TP & SL", defval = 14, minval = 1,group= "Take Profit and Stop Loss")
+srcUpper = input(title = "Source TP",  defval = close,group= "Take Profit and Stop Loss")
+srcLower = input(title = "Source SL",  defval = close,group= "Take Profit and Stop Loss")
+atrMultiplierTP = input(title = "ATR Multiplier TP", defval = 3,group= "Take Profit and Stop Loss")
+atrMultiplierSL = input(title = "ATR Multiplier SL", defval = 1,group= "Take Profit and Stop Loss")
+
+// TP and SL ATR
+atr = ta.atr(atrPeriodsltp)
+colorATRUpper = (trend==1  ? color.lime : trend==-1 ? color.red :  na )
+colorATRLower = (trend==-1 ? color.lime : trend==1 ? color.red :  na )
+
+ATRUpper = trend == 1 ? (srcUpper + atr * atrMultiplierTP) : trend == -1 ? (srcUpper + atr * atrMultiplierSL) :na
+ATRLower = trend == 1 ? (srcLower - atr * atrMultiplierSL) : trend == -1 ? (srcLower - atr * atrMultiplierTP) :na
+
+
+plot(ATRUpper,title="TP/SL Upper",color =ATRBandsOO ? colorATRUpper :na, offset=1 )
+plot(ATRLower,title="TP/SL lower",color =ATRBandsOO ? colorATRLower :na, offset=1 )
+
+
+
+/////////////////////////////////////////////////////// Long and Short Conditions /////////////////////////////////////////////////////////////
+entryType= input.string(title="Sup/Res Entry", defval="ST1",options= ["ST1","ST2"], group= "Trade Logic")
+pipsby= input.int(title = "Pips", defval = 20, minval = 1)
+slcalc = input.string(title="SL Calculation type", defval="ATR",options= ["ATR","Pips"], group= "Trade Logic")
+pipsMult= input.int(title = "Pip Multiplier", defval = 3, minval = 1)
+
+
+varip float currentLongSL= na
+varip float currentShortSL= na             
+varip float currentLongTP= na
+varip float currentShortTP= na
+varip float closeLast =na 
+varip float lowUsePivotAtTimeOfEntry = na
+varip float highUsePivotAtTimeOfEntry = na
+
+shortcondition = /////////////////////// ASSIGN LONG TRADE LOGIC HERE. 
+longcondition =    /////////////////////// ASSIGN SHORT TRADE LOGIC HERE. 
+
+longCloseCondition =  ta.crossunder(low,currentLongSL) or ta.crossover(high,currentLongTP) or ta.crossunder(close,lowUsePivotST2) and not (open - close < high - open)
+shortCloseCondition =   ta.crossover(high,currentShortSL) or ta.crossunder(low,currentShortTP) or ta.crossover(close,highUsePivotST2 ) and not(open - low > close - open)
+
+
+
+// Place Orders
+
+if (longcondition) and testPeriod() and strategy.position_size == 0
+    closeLast := close
+    currentLongSL := slcalc == "ATR" ? ATRLower : slcalc == "Pips" ? low[1] - (20 *syminfo.mintick) : na
+    currentLongTP := slcalc == "ATR" ? ATRUpper : slcalc == "Pips" ? math.abs(close- currentLongSL)*pipsMult + close : na
+    strategy.entry("Long", strategy.long)
+
+if (shortcondition) and testPeriod() and strategy.position_size == 0
+    closeLast := close
+    currentLongSL := slcalc == "ATR" ? ATRLower : slcalc == "Pips" ? low[1] - (20 *syminfo.mintick) : na
+    currentLongTP := slcalc == "ATR" ? ATRUpper : slcalc == "Pips" ? math.abs(close- currentLongSL)*pipsMult + close : na
+    strategy.entry("Short", strategy.long)
+
+
+
+l2= plot(strategy.position_size <= 0 ? na : currentLongSL, color=color.red,  linewidth=2, join = false,style=plot.style_linebr)
+l1=plot(strategy.position_size <= 0 ? na : currentLongTP, color=color.green,  linewidth=2, join = false,style=plot.style_linebr)
+closeLast1 =plot(strategy.position_size <= 0 ? na : closeLast, color=color.blue, linewidth=2, join = false,style=plot.style_linebr)
+s2 =plot(strategy.position_size >= 0 ? na : currentShortSL, color=color.red,  linewidth=2, join = false,style=plot.style_linebr)
+s1= plot(strategy.position_size >= 0 ? na : currentShortTP, color=color.green,  linewidth=2,join = false,style=plot.style_linebr)
+closeLast2 =plot(strategy.position_size >= 0 ? na : closeLast, color=color.blue, linewidth=2, join = false,style=plot.style_linebr)
+
+fill(closeLast1,l2,color=color.new(color.red, 90))
+fill(closeLast1,l1,color=color.new(color.green, 90))
+fill(closeLast2,s2,color=color.new(color.red, 90))
+fill(closeLast2,s1,color=color.new(color.green, 90))
+strategy.close("Long",longCloseCondition)
+strategy.close("Short",shortCloseCondition)

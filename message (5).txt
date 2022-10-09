@@ -1,0 +1,69 @@
+/// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © plewis22782
+//@version=5
+//
+strategy("Hotch build file", overlay=true, pyramiding=20, default_qty_type= strategy.percent_of_equity, default_qty_value = 10, calc_on_order_fills=true, slippage=0,commission_type=strategy.commission.percent,commission_value=0.014)
+strat_dir_input = input.string(title="Strategy Direction", defval="all", options=["long", "short", "all"])
+strat_dir_value = strat_dir_input == "long" ? strategy.direction.long : strat_dir_input == "short" ? strategy.direction.short : strategy.direction.all
+strategy.risk.allow_entry_in(strat_dir_value)
+//////////////////////////////////////////////////////////////////////
+
+string sessionInput = input.session("0600-1700", "Session")
+string daysInput = input.string("1234567", tooltip = "1 = Sunday, 7 = Saturday")
+sessionString = sessionInput + ":" + daysInput
+inSession = not na(time(timeframe.period, sessionString))
+bgcolor(inSession ? color.new(color.silver,85) : na)
+
+// Testing Start End Dates
+
+testStartYear = input(2020, "Backtest Start Year")
+testStartMonth = input(10, "Backtest Start Month")
+testStartDay = input(1, "Backtest Start Day")
+testPeriodStart = timestamp(testStartYear,testStartMonth,testStartDay,0,0)
+
+//Stop date if you want to use a specific range of dates
+
+testStopYear = input(2030, "Backtest Stop Year")
+testStopMonth = input(12, "Backtest Stop Month")
+testStopDay = input(30, "Backtest Stop Day")
+testPeriodStop = timestamp(testStopYear,testStopMonth,testStopDay,0,0)
+
+testPeriod() =>
+    time >= testPeriodStart and time <= testPeriodStop ? true : false
+/////////////////////////////////////Insert code here
+
+/////////////////////////////////////Trade and TP/SL logic
+varip float currentLongSL= na
+varip float currentShortSL= na
+varip float currentLongTP= na
+varip float currentShortTP= na
+varip float closeLast =na
+
+longCondition=  
+shortCondition= 
+
+longCloseCondition = 
+shortCloseCondition = 
+
+if (longCondition) and testPeriod() and strategy.position_size == 0 and inSession
+    closeLast := close
+    currentLongSL :=
+    currentLongTP :=
+    strategy.entry("Long", strategy.long)
+
+if (shortCondition) and testPeriod() and strategy.position_size == 0 and inSession 
+    closeLast := close
+    currentShortSL :=
+    currentShortTP :=
+    strategy.entry("Short", strategy.short)
+    
+strategy.close("Long", longCloseCondition)  
+strategy.close("Short", shortCloseCondition)  
+
+plot(strategy.position_size <= 0 ? na : currentLongSL, color=color.red,  linewidth=2)
+plot(strategy.position_size <= 0 ? na : currentLongTP, color=color.green,  linewidth=2)
+plot(strategy.position_size <= 0 ? na : closeLast, color=color.blue, linewidth=2)
+
+plot(strategy.position_size >= 0 ? na : currentShortSL, color=color.red,  linewidth=2)
+plot(strategy.position_size >= 0 ? na : currentShortTP, color=color.green,  linewidth=2)
+plot(strategy.position_size >= 0 ? na : closeLast, color=color.blue, linewidth=2)

@@ -1,0 +1,129 @@
+
+//@version=5
+
+indicator   ( "Bjorgum TSI",    "BJ TSI",   precision=4       ,     timeframe="",   timeframe_gaps=true)
+
+// ================================== //
+// ---------> User Input <----------- //
+// ================================== //
+
+strat       = input.string      ("Fast" ,   "Select a Speed"  ,     group="TSI Speed Control",           options= ["Fast", "Slow"])
+
+tsiBull     = input.color       (color.new(#17ff00,0) ,   ""  ,     group= "TSI Value Line"           ,  inline= "1")
+tsiMid      = input.color       (color.new(#9598a1,0) ,   ""  ,     group= "TSI Value Line"           ,  inline= "1")
+tsiBear     = input.color       (color.new(#f3ff00,0) ,   ""  ,     group= "TSI Value Line"           ,  inline= "1")
+
+tslBull     = input.color       (color.new(#64b5f6,0) ,   ""  ,     group= "TSI Signal Line"          ,  inline= "2")
+tslBear     = input.color       (color.new(#d32f2f,0) ,   ""  ,     group= "TSI Signal Line"          ,  inline= "2")
+
+fillBull    = input.color       (color.new(#64b5f6,88),   ""  ,     group= "Fill Color"               ,  inline= "3")
+fillBear    = input.color       (color.new(#d32f2f,88),   ""  ,     group= "Fill Color"               ,  inline= "3")
+
+oBot        = input.color       (color.new(#ff0000,65),   ""  ,     group= "Ob/Os Line Color"         ,  inline= "4")
+oSold       = input.color       (color.new(#64b5f6,65),   ""  ,     group= "Ob/Os Line Color"         ,  inline= "4")
+oZero       = input.color       (color.new(#b2b5be,65),   ""  ,     group= "Ob/Os Line Color"         ,  inline= "4")
+
+obBar       = input.color       (color.new(#ff0000,0),    ""  ,     group= "Bar Color"                ,  inline= "5")
+neBar       = input.color       (color.new(#ffffff,0),    ""  ,     group= "Bar Color"                ,  inline= "5")
+osBar       = input.color       (color.new(#17ff00,0),    ""  ,     group= "Bar Color"                ,  inline= "5")
+
+longf       = input.int         (25     ,   "Long Length"     ,     group= "TSI Fast Settings")
+shortf      = input.int         (5      ,   "Short Length"    ,     group= "TSI Fast Settings")
+signalf     = input.int         (14     ,   "Signal Length"   ,     group= "TSI Fast Settings")
+
+longs       = input.int         (25     ,   "Long Length"     ,     group= "TSI Slow Settings")
+shorts      = input.int         (13     ,   "Short Length"    ,     group= "TSI Slow Settings")
+signals     = input.int         (13     ,   "Signal Length"   ,     group= "TSI Slow Settings")
+
+oBotVal     = input.int         (30     ,   "Ob Value"        ,     group= "Overbought/Oversold Lines")
+oSoldVal    = input.int         (-30    ,   "Os Value"        ,     group= "Overbought/Oversold Lines")
+lines       = input.bool        (false  ,   "Show Ob/Os Lines",     group= "Overbought/Oversold Lines")
+midLine     = input.bool        (false  ,   "Show Zero Line"  ,     group= "Overbought/Oversold Lines")
+tsixVis     = input.bool        (false  ,   "Ob/Os Curl Color",     group= "Overbought/Oversold Lines")
+midCol      = input.bool        (true   ,   "Show White Bars" ,     group= "Overbought/Oversold Lines")
+
+// ================================== //,
+// ---> Functional Declarations <---- //
+// ================================== //
+
+_doubleSmooth(src, longvar, shortvar) =>
+	fist_smooth = ta.ema(src, longvar)
+	ta.ema(fist_smooth, shortvar)
+
+// ================================== //
+// ----> Variable Calculations <----- //
+// ================================== //
+
+tsifast     = strat ==  "Fast"
+tsislow     = strat ==  "Slow"
+
+shortvar    = tsifast ? shortf   :  tsislow ? shorts   : na
+longvar     = tsifast ? longf    :  tsislow ? longs    : na
+signalvar   = tsifast ? signalf  :  tsislow ? signals  : na
+
+pc          = ta.change             (close)
+dSmoothPc   = _doubleSmooth         (pc,            longvar,        shortvar)
+dSmoothAbs  = _doubleSmooth         (math.abs(pc),  longvar,        shortvar)
+tsi         = 100 *                 (dSmoothPc/     dSmoothAbs)
+tsl         = ta.ema                (tsi,           signalvar)
+
+// ================================== //
+// ----> Conditional Parameters <---- //
+// ================================== //
+
+data        = tsi >  tsi[1] and tsi < tsl
+dtat        = tsi <  tsi[1] and tsi > tsl
+
+lot1        = tsl >= tsl[1]
+lot2        = tsl <  tsl[1]
+
+data1       = tsi >= tsl
+data2       = tsi <  tsl
+
+obcol       = tsi > oBotVal  and tsi < tsi[1] and tsi[1] > tsl[1]
+oscol       = tsi < oSoldVal and tsi > tsi[1] and tsi[1] < tsl[1]
+
+buy         = ta.crossover  (tsi,   tsl)
+sell        = ta.crossunder (tsi,   tsl)
+cross       = ta.cross      (tsi,   tsl)
+
+tsixup      = ta.crossover  (tsi,   oBotVal)
+tsixdwn     = ta.crossunder (tsi,   oSoldVal)
+
+myCol       = data  ?   tsiBull :   dtat    ?   tsiBear :   tsiMid
+jercol      = obcol ?   obBar   :   oscol   ?   osBar   :   midCol ? neBar : na
+lotCol      = lot1  ?   tslBull :   lot2    ?   tslBear :   na
+fillCol     = data1 ?   fillBull:   data2   ?   fillBear:   na
+
+// ================================== //
+// ------> Graphical Display <------- //
+// ================================== //
+
+p1          = plot(tsi     , "TSI Value Line"   ,   myCol)
+p2          = plot(tsl     , "TSI Signal Line"  ,   lotCol)
+p3          = plot(oBotVal , "Overbought"       ,   lines   ?   oBot :  na)
+p4          = plot(oSoldVal, "Oversold"         ,   lines   ?   oSold:  na)
+p5          = plot(0       , "Zero"             ,   midLine ?   oZero:  na)
+
+fill          (p1, p2,       title="Fill Color" ,   color=      fillCol)
+barcolor      (tsixVis    ?  jercol : na)
+
+// ================================== //
+// -----> Alert Functionality <------ //
+// ================================== //
+
+alertcondition(buy    ,     'TSI cross up'       ,  'TSI crossed up on {{interval}} chart. Price is {{close}}')
+alertcondition(sell   ,     'TSI cross down'     ,  'TSI crossed down on {{interval}} chart. Price is {{close}}')
+alertcondition(cross  ,     'TSI cross'          ,  'TSI crossed on {{interval}} chart. Price is {{close}}')
+alertcondition(data   ,     'TSI Curl Up'        ,  'TSI curled up on {{interval}} chart. Price is {{close}}')
+alertcondition(dtat   ,     'TSI Curl Down'      ,  'TSI curled down on {{interval}} chart. Price is {{close}}')
+alertcondition(tsixup ,     'TSI Overbought'     ,  'TSI moved in to overbought on {{interval}} chart. Price is {{close}}')
+alertcondition(tsixdwn,     'TSI Oversold'       ,  'TSI moved in to oversold on {{interval}} chart. Price is {{close}}')
+alertcondition(obcol  ,     'TSI Curl Overbought',  'TSI Curled Down In Overbought on {{interval}} chart. Price is {{close}}')
+alertcondition(oscol  ,     'TSI Curl Oversold'  ,  'TSI Curled Up In Oversold on {{interval}} chart. Price is {{close}}')
+
+
+//  ____  __ _  ____
+// (  __)(  ( \(    \
+//  ) _) /    / ) D (
+// (____)\_)__)(____/

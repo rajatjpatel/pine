@@ -1,0 +1,345 @@
+//@version=5
+indicator(title="TMA Overlay", shorttitle="TMA Overlay", overlay=true)
+
+// ### Four Smoothed Moving Averages
+
+typeofMA1 = input.string(title="Type of Moving Average", defval="SMMA", options=["RMA", "SMA", "EMA", "WMA", "VWMA", "SMMA", "TMA", "HullMA", "DEMA", "TEMA"],group="Moving Averages")
+
+averageSource= close
+length_ma1 = input.int(21, title = "Length 1",group="Moving Averages")
+length_ma2 = input.int(50, title = "Length 2",group="Moving Averages")
+length_ma3 = input.int(100, title = "Length 3",group="Moving Averages")
+length_ma4 = input.int(200, title = "Length 4",group="Moving Averages")
+
+
+
+f_smma(averageSource, averageLength) =>
+    smma = 0.0
+    smma := na(smma[1]) ? ta.sma(averageSource, averageLength) : (smma[1] * (averageLength - 1) + averageSource) / averageLength
+    smma
+
+f_hullma(averageSource, averageLength) =>
+    ta.wma(2 * ta.wma(averageSource, averageLength / 2) - ta.wma(averageSource, averageLength), math.round(math.sqrt(averageLength)))
+
+f_tma(averageSource, averageLength) =>
+    ta.sma(ta.sma(averageSource, averageLength), averageLength)
+
+f_dema(averageSource, averageLength) =>
+    emaValue = ta.ema(averageSource, averageLength)
+    2 * emaValue - ta.ema(emaValue, averageLength)
+
+f_tema(averageSource, averageLength) =>
+    ema1 = ta.ema(averageSource, averageLength)
+    ema2 = ta.ema(ema1, averageLength)
+    ema3 = ta.ema(ema2, averageLength)
+    (3 * ema1) - (3 * ema2) + ema3
+
+f_ma(smoothing, averageSource, averageLength) =>
+	switch str.upper(smoothing)
+        "SMA"  => ta.sma(averageSource, averageLength)
+        "EMA"  => ta.ema(averageSource, averageLength)
+        "WMA"  => ta.wma(averageSource, averageLength)
+        "HMA"  => ta.hma(averageSource, averageLength)
+        "RMA"  => ta.rma(averageSource, averageLength)
+        "SMMA" => f_smma(averageSource, averageLength)
+        "SWMA" => ta.swma(averageSource)
+        "ALMA" => ta.alma(averageSource, averageLength, 0.85, 6)
+        "VWMA" => ta.vwma(averageSource, averageLength)
+        => runtime.error("Moving average type '" + smoothing +
+             "' not found!"), na
+MA1 = f_ma(typeofMA1, averageSource, length_ma1)
+MA2 = f_ma(typeofMA1, averageSource, length_ma2)
+MA3 = f_ma(typeofMA1, averageSource, length_ma3)
+MA4 = f_ma(typeofMA1, averageSource, length_ma4)
+
+///////////////dynamic line coloring
+dynamic = input.bool (title="Use Dynamic Line Color", defval=false )
+src=close
+length = 10
+beta   = 1
+alpha  = 1
+var b = array.new_float(0)
+var css = array.new_color(na)
+if barstate.isfirst
+    for i = 0 to length-1
+        x = i/(length-1)
+        w = math.pow(x,alpha-1)*math.pow(1-x,beta-1)
+        array.push(b,w)
+    array.push(css,#FF1100), array.push(css,#FF1200), array.push(css,#FF1400), array.push(css,#FF1500), array.push(css,#FF1700), array.push(css,#FF1800), array.push(css,#FF1A00), array.push(css,#FF1B00), array.push(css,#FF1D00), array.push(css,#FF1F00), array.push(css,#FF2000), array.push(css,#FF2200), array.push(css,#FF2300), array.push(css,#FF2500), array.push(css,#FF2600), array.push(css,#FF2800), array.push(css,#FF2900), array.push(css,#FF2B00), array.push(css,#FF2D00), array.push(css,#FF2E00), array.push(css,#FF3000), array.push(css,#FF3100), array.push(css,#FF3300), array.push(css,#FF3400), array.push(css,#FF3600), array.push(css,#FF3700), array.push(css,#FF3900), array.push(css,#FF3B00), array.push(css,#FF3C00), array.push(css,#FF3E00), array.push(css,#FF3F00), array.push(css,#FF4100), array.push(css,#FF4200), array.push(css,#FF4400), array.push(css,#FF4500), array.push(css,#FF4700), array.push(css,#FF4900), array.push(css,#FF4A00), array.push(css,#FF4C00), array.push(css,#FF4D00), array.push(css,#FF4F00), array.push(css,#FF5000), array.push(css,#FF5200), array.push(css,#FF5300), array.push(css,#FF5500), array.push(css,#FF5700), array.push(css,#FF5800), array.push(css,#FF5A00), array.push(css,#FF5B00), array.push(css,#FF5D00), array.push(css,#FF5E00), array.push(css,#FF6000), array.push(css,#FF6200), array.push(css,#FF6300), array.push(css,#FF6500), array.push(css,#FF6600), array.push(css,#FF6800), array.push(css,#FF6900), array.push(css,#FF6B00), array.push(css,#FF6C00), array.push(css,#FF6E00), array.push(css,#FF7000), array.push(css,#FF7100), array.push(css,#FF7300), array.push(css,#FF7400), array.push(css,#FF7600), array.push(css,#FF7700), array.push(css,#FF7900), array.push(css,#FF7A00), array.push(css,#FF7C00), array.push(css,#FF7E00), array.push(css,#FF7F00), array.push(css,#FF8100), array.push(css,#FF8200), array.push(css,#FF8400), array.push(css,#FF8500), array.push(css,#FF8700), array.push(css,#FF8800), array.push(css,#FF8A00), array.push(css,#FF8C00), array.push(css,#FF8D00), array.push(css,#FF8F00), array.push(css,#FF9000), array.push(css,#FF9200), array.push(css,#FF9300), array.push(css,#FF9500), array.push(css,#FF9600), array.push(css,#FF9800), array.push(css,#FF9A00), array.push(css,#FF9B00), array.push(css,#FF9D00), array.push(css,#FF9E00), array.push(css,#FFA000), array.push(css,#FFA100), array.push(css,#FFA300), array.push(css,#FFA400), array.push(css,#FFA600), array.push(css,#FFA800), array.push(css,#FFA900), array.push(css,#FFAB00), array.push(css,#FDAC00), array.push(css,#FBAD02), array.push(css,#F9AE03), array.push(css,#F7AE04), array.push(css,#F5AF06), array.push(css,#F3B007), array.push(css,#F1B108), array.push(css,#EFB20A), array.push(css,#EDB30B), array.push(css,#EBB30C), array.push(css,#E9B40E), array.push(css,#E7B50F), array.push(css,#E4B610), array.push(css,#E2B712), array.push(css,#E0B813), array.push(css,#DEB814), array.push(css,#DCB916), array.push(css,#DABA17), array.push(css,#D8BB18), array.push(css,#D6BC1A), array.push(css,#D4BD1B), array.push(css,#D2BD1C), array.push(css,#D0BE1E), array.push(css,#CEBF1F), array.push(css,#CCC020), array.push(css,#C9C122), array.push(css,#C7C223), array.push(css,#C5C224), array.push(css,#C3C326), array.push(css,#C1C427), array.push(css,#BFC528), array.push(css,#BDC62A), array.push(css,#BBC72B), array.push(css,#B9C72C), array.push(css,#B7C82E), array.push(css,#B5C92F), array.push(css,#B3CA30), array.push(css,#B0CB32), array.push(css,#AECC33), array.push(css,#ACCC34), array.push(css,#AACD36), array.push(css,#A8CE37), array.push(css,#A6CF38), array.push(css,#A4D03A), array.push(css,#A2D13B), array.push(css,#A0D13C), array.push(css,#9ED23E), array.push(css,#9CD33F), array.push(css,#9AD440), array.push(css,#98D542), array.push(css,#95D643), array.push(css,#93D644), array.push(css,#91D746), array.push(css,#8FD847), array.push(css,#8DD948), array.push(css,#8BDA4A), array.push(css,#89DB4B), array.push(css,#87DB4C), array.push(css,#85DC4E), array.push(css,#83DD4F), array.push(css,#81DE50), array.push(css,#7FDF52), array.push(css,#7CE053), array.push(css,#7AE054), array.push(css,#78E156), array.push(css,#76E257), array.push(css,#74E358), array.push(css,#72E45A), array.push(css,#70E55B), array.push(css,#6EE55C), array.push(css,#6CE65E), array.push(css,#6AE75F), array.push(css,#68E860), array.push(css,#66E962), array.push(css,#64EA63), array.push(css,#61EA64), array.push(css,#5FEB66), array.push(css,#5DEC67), array.push(css,#5BED68), array.push(css,#59EE6A), array.push(css,#57EF6B), array.push(css,#55EF6C), array.push(css,#53F06E), array.push(css,#51F16F), array.push(css,#4FF270), array.push(css,#4DF372), array.push(css,#4BF473), array.push(css,#48F474), array.push(css,#46F576), array.push(css,#44F677), array.push(css,#42F778), array.push(css,#40F87A), array.push(css,#3EF97B), array.push(css,#3CF97C), array.push(css,#3AFA7E), array.push(css,#38FB7F), array.push(css,#36FC80), array.push(css,#34FD82), array.push(css,#32FE83), array.push(css,#30FF85),
+den = array.sum(b)
+//----
+
+sum = 0.
+for i = 0 to length-1
+    sum := sum + MA1[i]*array.get(b,i)
+filt = sum/den
+os = ta.rsi(filt,length)/100
+dynColor = array.get(css,math.round(os*199))
+
+
+///////////////plot MAs
+plot_ma1 = plot(MA1, color= dynamic ?  dynColor: color.green , linewidth=1, title = "MA1")
+plot_ma2 = plot(MA2, color= dynamic ?  dynColor: color.red , linewidth=1, title = "MA2")
+plot_ma3 = plot(MA3, color= dynamic ?  dynColor: color.yellow, linewidth=1, title = "MA3")
+plot_ma4 = plot(MA4, color= dynamic ?  dynColor: color.white, linewidth=1, title = "MA4")
+// Trend Fill
+rsi1 =ta.rsi(close,14)
+smmaLen = 50
+//input(50, minval=1, title="SMMA Length", group = "Smoothed MA")
+smmaSrc = rsi1
+smma = 0.0
+smma := na(smma[1]) ? ta.sma(smmaSrc, smmaLen) : (smma[1] * (smmaLen - 1) + smmaSrc) / smmaLen
+
+transparencyValue=math.abs(rsi1-smma)
+
+trendFill = input(title="Show Trend Fill",  defval=true, group = "Smoothed MA Inputs")
+bColor = if rsi1  > smma
+    color.from_gradient(transparencyValue,0, 50, color.new(color.lime, 80), color.lime)
+else
+    color.from_gradient(transparencyValue,0, 50, color.new(color.red, 80),color.red)
+
+fill(plot_ma1,plot_ma2,bColor,title="RSI Fill")
+// End ###
+
+// ### 3 Line Strike
+
+bearS = input.bool(title="Show Bearish 3 Line Strike",  defval=true, group = "3 Line Strike")
+bullS = input.bool(title="Show Bullish 3 Line Strike",  defval=true, group = "3 Line Strike")
+
+
+bearSig =  close[3] > open[3] and close[2] > open[2] and close[1] > open[1] and close < open[1]
+bullSig =  close[3] < open[3] and close[2] < open[2] and close[1] < open[1] and close > open[1]
+
+plotshape(bullS ? bullSig : na, style=shape.triangleup, color=color.green, location=location.belowbar, size = size.small,  title="3 Line Strike Up")
+plotshape(bearS ? bearSig : na, style=shape.triangledown, color=color.red, location=location.abovebar, size = size.small,   title="3 Line Strike Down")
+
+alertcondition(bullSig, title="Bullish 3-line", message="[CurrencyPair] [TimeFrame], Bullish 3-line Strike")
+alertcondition(bearSig, title="Bearish 3-line", message="[CurrencyPair] [TimeFrame], Bearish 3-line Strike")
+
+// End ###
+
+//### Engulfing Candles
+
+bearE = input.bool(title="Show Bearish Big A$$ Candles",  defval=true, group = "Big A$$ Candles")
+bullE = input.bool(title="Show Bullish Big A$$ Candles",  defval=true, group = "Big A$$ Candles")
+strictBAC=input.string(title = "Strict/Not",defval="Strict", options=["Not","Strict"])
+
+
+openBarPrevious = open[1]
+closeBarPrevious = close[1]
+openBarCurrent = open
+closeBarCurrent = close
+
+//If current bar open is less than equal to the previous bar close AND current bar open is less than previous bar open AND current bar close is greater than previous bar open THEN True
+bullishEngulfing = strictBAC == "Not" ? openBarCurrent <= closeBarPrevious and openBarCurrent < openBarPrevious and closeBarCurrent > openBarPrevious : strictBAC == "Strict" ?  close<MA1 and close>MA4 and openBarCurrent <= closeBarPrevious and openBarCurrent < openBarPrevious and closeBarCurrent > openBarPrevious :na
+//If current bar open is greater than equal to previous bar close AND current bar open is greater than previous bar open AND current bar close is less than previous bar open THEN True
+bearishEngulfing = strictBAC == "Not" ? openBarCurrent >= closeBarPrevious and openBarCurrent > openBarPrevious and closeBarCurrent < openBarPrevious : strictBAC == "Strict" ? close>MA1 and close< MA4 and openBarCurrent >= closeBarPrevious and openBarCurrent > openBarPrevious and closeBarCurrent < openBarPrevious : na
+
+//bullishEngulfing/bearishEngulfing return a value of 1 or 0; if 1 then plot on chart, if 0 then don't plot
+plotshape(bullE ? bullishEngulfing : na, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny, title="Big Ass Candle Up" )
+plotshape(bearE ? bearishEngulfing : na, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny, title="Big Ass Candle Down")
+
+alertcondition(bullishEngulfing, title="Bullish Engulfing", message="[CurrencyPair] [TimeFrame], Bullish candle engulfing previous candle")
+alertcondition(bearishEngulfing, title="Bearish Engulfing", message="[CurrencyPair] [TimeFrame], Bearish candle engulfing previous candle")
+
+
+
+// ### Trading Session
+
+
+// Inputs
+//
+// session windows
+g_Sessions = 'Session Settings'
+showLondonSession = input.bool(title='', defval=true, group=g_Sessions, inline='showLondonSession')
+londonSession = input.session(title='London Session', defval='0300-1200', group=g_Sessions, tooltip='Default values are US Eastern (UTC -5), please adjust as needed!', inline='showLondonSession')
+showNYSession = input.bool(title='', defval=true, group=g_Sessions, inline='showNYSession')
+nySession = input.session(title='New York Session', defval='0800-1700', group=g_Sessions, tooltip='Default values are US Eastern (UTC -5), please adjust as needed!', inline='showNYSession')
+showTokyoSession = input.bool(title='', defval=false, group=g_Sessions, inline='showTokyoSession')
+tokyoSession = input.session(title='Tokyo Session', defval='2000-0400', group=g_Sessions, tooltip='Default values are US Eastern (UTC -5), please adjust as needed!', inline='showTokyoSession')
+showSydneySession = input.bool(title='', defval=false, group=g_Sessions, inline='showSydneySession')
+sydneySession = input.session(title='Sydney Session', defval='1700-0200', group=g_Sessions, tooltip='Default values are US Eastern (UTC -5), please adjust as needed!', inline='showSydneySession')
+//
+// Low/High Resolution
+// res = input.timeframe(title='Session High/Low Timeframe', defval='D', options=['D', 'W', 'M'], group='Session High/Low Resolution', tooltip='Select the time interval to use for identifying ' +
+//				 'the session-high and session-low data points.  This affects what is shown on the chart as the session high/low.  For timeframes less than 1 week, the daily value is recommended.')
+//
+// Color inputs
+g_Colors = 'Color inputs'
+londonBGColor = input.color(title='London Session - Background:', group=g_Colors, defval=color.rgb(0, 255, 0, 90), inline='lc', tooltip='Colors to use for identifying London/Europe session info')
+londonTextColor = input.color(title='Label Text:', group=g_Colors, defval=color.rgb(0, 0, 0, 0), inline='lc', tooltip='Colors to use for identifying London/Europe session info')
+nyBGColor = input.color(title='New York Session  - Background:', group=g_Colors, inline="nc", defval=color.rgb(255, 0, 0, 90), tooltip='Colors to use for identifying New York/US session info')
+nyTextColor = input.color(title='Label Text:', group=g_Colors, inline="nc", defval=color.rgb(255, 255, 255, 0), tooltip='Colors to use for identifying New York/US session info')
+asiaBGColor = input.color(title='Tokyo Session  - Background:', group=g_Colors, inline="tc", defval=color.rgb(255, 255, 0, 90), tooltip='Colors to use for identifying Tokyo/Asia session info')
+asiaTextColor = input.color(title='Label Text:', group=g_Colors, inline="tc", defval=color.rgb(0, 0, 0, 0), tooltip='Colors to use for identifying Tokyo/Asia session info')
+ausBGColor = input.color(title='Sydney Session  - Background:', group=g_Colors, inline="ss", defval=color.rgb(0, 255, 255, 90), tooltip='Colors to use for identifying Sydney/Australia session info')
+ausTextColor = input.color(title='Label Text:', group=g_Colors, inline="ss", defval=color.rgb(0, 0, 0, 0), tooltip='Colors to use for identifying Sydney/Australia session info')
+//
+// High/Low control inputs
+doHighLowDiffLabels = input.bool(title='Label session high/low difference', defval=false, group='hlControls', tooltip='Show labels indicating difference between session high and session low')
+
+// Functions
+//
+// Function to determine if current bar falls into the input session
+isInSession(session) =>
+    barSessionTime = time(timeframe.period, session)
+    inSession = not na(barSessionTime)
+    inSession
+
+// Force-pull price via security function to help ensure consistency on non-standard chart types...
+//
+// Explicitly define our ticker to help ensure that we're always getting ACTUAL price instead of relying on the input
+// ticker info and input vars (as they tend to inherit the type from what's displayed on the current chart)
+realPriceTicker = ticker.new(prefix=syminfo.prefix, ticker=syminfo.ticker)
+//
+// This MAY be unnecessary, but in testing I've found some oddities when trying to use this on varying chart types
+// like on the HA chart, where the source referece for the price skews to the values for the current chart type
+// instead of the expected pure-price values.  For example, the 'source=close' reference - 'close' would be actual price
+// close on a normal candlestick chart, but would be the HA close on the HA chart.
+[o, h, l, c] = request.security(symbol=realPriceTicker, timeframe='', expression=[open, high, low, close], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+// Session - London
+//
+// Full-height fill
+bgcolor(color=isInSession(londonSession) and showLondonSession ? londonBGColor : na, title='London Session', editable=false)
+//
+// Track session high/low
+var float londonSessionHigh = na
+var float londonSessionLow = na
+var float londonSessionOpen = na
+var float londonSessionClose = na
+var bool isLondonSessionStart = false
+isInLondonSession = isInSession(londonSession)
+if (isInLondonSession)
+    // In session, check for session start...
+    if (not isInLondonSession[1])
+        // Start of session, reset high and low tracking vars
+        londonSessionHigh := h
+        londonSessionLow := l
+        isLondonSessionStart := true
+		londonSessionOpen := o
+    else
+        londonSessionHigh := math.max(h, londonSessionHigh[1])
+        londonSessionLow := math.min(l, londonSessionLow[1])
+		// Being a bit lazy here and updating close every candle instead of explicitly
+		// waiting for the last candle close to grab the session close value, but the result
+		// will still be the same...
+		londonSessionClose := c
+
+// Calculate session high/low diff
+// plot(title="LondonHigh", series=isInLondonSession ? londonSessionHigh : na, color=londonBGColor, style=plot.style_circles)
+// plot(title="LondonLow", series=isInLondonSession ? londonSessionLow : na, color=londonBGColor, style=plot.style_circles)
+londonSessDiff = londonSessionHigh[1] - londonSessionLow[1]
+// Plot session high/low diff as label if enables
+if (isInLondonSession[1] and not isInLondonSession and doHighLowDiffLabels and showLondonSession)
+    r = color.r(londonBGColor)
+    g = color.g(londonBGColor)
+    b = color.b(londonBGColor)
+	isCloseBelowOpen = londonSessionClose < londonSessionOpen ? true : false
+    label.new(bar_index[1], isCloseBelowOpen ? londonSessionLow : londonSessionHigh, str.tostring(londonSessDiff, format.mintick), style=isCloseBelowOpen ? label.style_label_up : label.style_label_down, color=color.rgb(r, g, b, 0), textcolor=londonTextColor)
+
+// Session - New York
+bgcolor(color=isInSession(nySession) and showNYSession ? nyBGColor : na, title='New York Session', editable=false)
+//
+// Track session high/low
+var float nySessionHigh = na
+var float nySessionLow = na
+var float nySessionOpen = na
+var float nySessionClose = na
+var bool isNYSessionStart = false
+isInNYSession = isInSession(nySession)
+if (isInNYSession)
+    // In session, check for session start...
+    if (not isInNYSession[1])
+        // Start of session, reset high and low tracking vars
+        nySessionHigh := h
+        nySessionLow := l
+        isNYSessionStart := true
+		nySessionOpen := o
+    else
+        nySessionHigh := math.max(h, nySessionHigh[1])
+        nySessionLow := math.min(l, nySessionLow[1])
+		// Being a bit lazy here and updating close every candle instead of explicitly
+		// waiting for the last candle close to grab the session close value, but the result
+		// will still be the same...
+		nySessionClose := c
+// Calculate session high/low diff
+nySessDiff = nySessionHigh[1] - nySessionLow[1]
+// Plot session high/low diff as label if enables
+if (isInNYSession[1] and not isInNYSession and doHighLowDiffLabels and showNYSession)
+    r = color.r(nyBGColor)
+    g = color.g(nyBGColor)
+    b = color.b(nyBGColor)
+	isCloseBelowOpen = nySessionClose < nySessionOpen ? true : false
+    label.new(bar_index[1], isCloseBelowOpen ? nySessionLow : nySessionHigh, str.tostring(nySessDiff, format.mintick), style=isCloseBelowOpen ? label.style_label_up : label.style_label_down, color=color.rgb(r, g, b, 0), textcolor=nyTextColor)
+
+// Session - Tokyo
+bgcolor(color=isInSession(tokyoSession) and showTokyoSession ? asiaBGColor : na, title='Tokyo Session', editable=false)
+//
+// Track session high/low
+var float tokyoSessionHigh = na
+var float tokyoSessionLow = na
+var float tokyoSessionOpen = na
+var float tokyoSessionClose = na
+var bool isTokyoSessionStart = false
+isInTokyoSession = isInSession(tokyoSession)
+if (isInTokyoSession)
+    // In session, check for session start...
+    if (not isInTokyoSession[1])
+        // Start of session, reset high and low tracking vars
+        tokyoSessionHigh := h
+        tokyoSessionLow := l
+        isTokyoSessionStart := true
+		tokyoSessionOpen := o
+    else
+        tokyoSessionHigh := math.max(h, tokyoSessionHigh[1])
+        tokyoSessionLow := math.min(l, tokyoSessionLow[1])
+		// Being a bit lazy here and updating close every candle instead of explicitly
+		// waiting for the last candle close to grab the session close value, but the result
+		// will still be the same...
+		tokyoSessionClose := c
+// Calculate session high/low diff
+tokyoSessDiff = tokyoSessionHigh[1] - tokyoSessionLow[1]
+// Plot session high/low diff as label if enables
+if (isInTokyoSession[1] and not isInTokyoSession and doHighLowDiffLabels and showTokyoSession)
+    r = color.r(asiaBGColor)
+    g = color.g(asiaBGColor)
+    b = color.b(asiaBGColor)
+	isCloseBelowOpen = tokyoSessionClose < tokyoSessionOpen ? true : false
+    label.new(bar_index[1], isCloseBelowOpen ? tokyoSessionLow : tokyoSessionHigh, str.tostring(tokyoSessDiff, format.mintick), style=isCloseBelowOpen ? label.style_label_up : label.style_label_down, color=color.rgb(r, g, b, 0), textcolor=asiaTextColor)
+
+
+// Session - Sydney
+bgcolor(color=isInSession(sydneySession) and showSydneySession ? ausBGColor : na, title='Sydney Session', editable=false)
+//
+// Track session high/low
+var float sydneySessionHigh = na
+var float sydneySessionLow = na
+var float sydneySessionOpen = na
+var float sydneySessionClose = na
+var bool isSydneySessionStart = false
+isInSydneySession = isInSession(sydneySession)
+if (isInSydneySession)
+    // In session, check for session start...
+    if (not isInSydneySession[1])
+        // Start of session, reset high and low tracking vars
+        sydneySessionHigh := h
+        sydneySessionLow := l
+        isSydneySessionStart := true
+		sydneySessionOpen := o
+    else
+        sydneySessionHigh := math.max(h, sydneySessionHigh[1])
+        sydneySessionLow := math.min(l, sydneySessionLow[1])
+		// Being a bit lazy here and updating close every candle instead of explicitly
+		// waiting for the last candle close to grab the session close value, but the result
+		// will still be the same...
+		sydneySessionClose := c
+// Calculate session high/low diff
+sydneySessDiff = sydneySessionHigh[1] - sydneySessionLow[1]
+// Plot session high/low diff as label if enables
+if (isInSydneySession[1] and not isInSydneySession and doHighLowDiffLabels and showSydneySession)
+    r = color.r(ausBGColor)
+    g = color.g(ausBGColor)
+    b = color.b(ausBGColor)
+	isCloseBelowOpen = sydneySessionClose < sydneySessionOpen ? true : false
+    label.new(bar_index[1], isCloseBelowOpen ? sydneySessionLow : sydneySessionHigh, str.tostring(sydneySessDiff, format.mintick), style=isCloseBelowOpen ? label.style_label_up : label.style_label_down, color=color.rgb(r, g, b, 0), textcolor=ausTextColor)

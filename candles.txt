@@ -1,0 +1,246 @@
+1. Hammer:
+2. Piercing Pattern:
+3. Bullish Engulfing:
+4. The Morning Star:
+5. Three White Soldiers:
+6. White Marubozu:
+7. Three Inside Up:
+8. Bullish Harami:
+9. Tweezer Bottom:
+10. Inverted Hammer:
+11. Three Outside Up:
+12. On-Neck Pattern:
+13. Bullish Counterattack-
+Bearish Candlestick Pattern:
+1. Hanging man:
+2. Dark cloud cover:
+3. Bearish Engulfing:
+4. The Evening Star:
+5. Three Black Crows:
+6. Black Marubozu:
+7. Three Inside Down:
+8. Bearish Harami:
+9. Shooting Star:
+10. Tweezer Top:
+11. Three Outside Down:
+12. Bearish Counterattack-
+Continuation Candlestick Patterns:
+1. Doji:
+2. Spinning Top:
+3. Falling Three Methods:
+4. Rising Three Methods:
+5. Upside Tasuki Gap:
+6. Downside Tasuki Gap:
+7. Mat-Hold-
+8. Rising Window-
+9. Falling Window-
+10. High Wave-
+
+Hammer is a single candlestick pattern that is formed at the end of a downtrend and signals a bullish reversal.
+
+The real body of this candle is small and is located at the top with a lower shadow which should be more than twice the real body. This candlestick chart pattern has no or little upper shadow.
+
+The psychology behind this candle formation is that the prices opened, and sellers pushed down the prices.
+
+Suddenly the buyers came into the market and pushed the prices up and closed the trading session more than the opening price.
+
+Piercing Pattern:
+Piercing pattern is a multiple candlestick chart pattern formed after a downtrend indicating a bullish reversal.
+
+Two candles form it, the first candle being a bearish candle which indicates the continuation of the downtrend.
+
+The second candle is a bullish candle which opens the gap down but closes more than 50% of the real body of the previous candle, which shows that the bulls are back in the market and a bullish reversal is going to take place.
+
+
+Bullish Engulfing:
+Bullish Engulfing is a multiple candlestick chart pattern that is formed after a downtrend indicating a bullish reversal.
+
+It is formed by two candles, the second candlestick engulfing the first candlestick. The first candle is a bearish candle that indicates the continuation of the downtrend.
+
+The second candlestick is a long bullish candle that completely engulfs the first candle and shows that the bulls are back in the market.
+
+The Morning Star:
+The Morning Star is a multiple candlestick chart pattern which is formed after a downtrend indicating a bullish reversal.
+
+It is made of 3 candlesticks, the first being a bearish candle, the second a Doji and the third being a bullish candle.
+
+The first candle shows the continuation of the downtrend. The second candle being a doji indicates indecision in the market. The third bullish candle shows that the bulls are back in the market and reversal will take place.
+
+The second candle should be completely out of the real bodies of the first and third candles.
+
+Three White Soldiers:
+The Three White Soldiers is a multiple candlestick pattern that is formed after a downtrend indicating a bullish reversal.
+
+These candlestick charts are made of three long bullish bodies which do not have long shadows and are open within the real body of the previous candle in the pattern.
+
+White Marubozu:
+The White Marubozu is a single candlestick pattern that is formed after a downtrend indicating a bullish reversal.
+
+This candlestick has a long bullish body with no upper or lower shadows which shows that the bulls are exerting buying pressure and the markets may turn bullish.
+
+Three Inside Up:
+The Three Inside Up is multiple candlestick pattern which is formed after a downtrend indicating bullish reversal.
+
+It consists of three candlesticks, the first being a long bearish candle, the second candlestick being a small bullish candle which should be in the range the first candlestick.
+
+The third candlestick should be a long bullish candlestick confirming the bullish reversal.
+
+Bullish Harami:
+The Bullish Harami is multiple candlestick chart pattern which is formed after a downtrend indicating bullish reversal.
+
+It consists of two candlestick charts, the first candlestick being a tall bearish candle and second being a small bullish candle which should be in the range of the first candlestick.
+
+The first bearish candle shows the continuation of the bearish trend and the second candle shows that the bulls are back in the market.
+
+Tweezer Bottom:
+The Tweezer Bottom candlestick pattern is a bullish reversal candlestick pattern that is formed at the end of the downtrend.
+
+It consists of two candlesticks, the first one being bearish and the second one being bullish candlestick.
+
+Both the candlesticks make almost or the same low.When the Tweezer Bottom candlestick pattern is formed the prior trend is a downtrend.
+
+Inverted Hammer:
+An Inverted Hammer is formed at the end of the downtrend and gives a bullish reversal signal.
+
+In this candlestick, the real body is located at the end and there is a long upper shadow. It is the inverse of the Hammer Candlestick pattern.
+
+This pattern is formed when the opening and closing prices are near to each other and the upper shadow should be more than twice the real body.
+
+Three Outside Up:
+The Three Outside Up is multiple candlestick pattern which is formed after a downtrend indicating bullish reversal.
+
+It consists of three candlesticks, the first being a short bearish candle, the second candlestick being a large bullish candle which should cover the first candlestick.
+
+The third candlestick should be a long bullish candlestick confirming the bullish reversal.
+
+On-Neck Pattern:
+The on neck pattern occurs after a downtrend when a long real bodied bearish candle is followed by a smaller real bodied bullish candle which gaps down on the open but then closes near the prior candle’s close.
+
+The pattern is called a neckline because the two closing prices are the same or almost the same across the two candles, forming a horizontal neckline.
+
+Hanging man:
+Hanging Man is a single candlestick pattern which is formed at the end of an uptrend and signals bearish reversal.
+
+The real body of this candle is small and is located at the top with a lower shadow which should be more than the twice of the real body. This candlestick pattern has no or little upper shadow.
+
+The psychology behind this candle formation is that the prices opened and seller pushed down the prices.
+
+Suddenly the buyers came into the market and pushed the prices up but were unsuccessful in doing so as the prices closed below the opening price.
+
+Dark cloud cover:
+Dark Cloud Cover is multiple candlestick pattern which is formed after the uptrend indicating bearish reversal.
+
+It is formed by two candles, the first candle being a bullish candle which indicates the continuation of the uptrend.
+
+The second candle is a bearish candle which opens gap up but closes more than 50% of the real body of the previous candle which shows that the bears are back in the market and bearish reversal is going to take place.
+
+Bearish Engulfing:
+Bearish Engulfing is a multiple candlestick pattern that is formed after an uptrend indicating a bearish reversal.
+
+It is formed by two candles, the second candlestick engulfing the first candlestick. The first candle being a bullish candle indicates the continuation of the uptrend.
+
+The second candlestick chart is a long bearish candle that completely engulfs the first candle and shows that the bears are back in the market.
+
+The Evening Star:
+The Evening Star is multiple candlestick pattern which is formed after the uptrend indicating bearish reversal.
+
+It is made of 3 candlesticks, first being a bullish candle, second a doji and third being a bearish candle.
+
+The first candle shows the continuation of the uptrend, the second candle being a doji indicates indecision in the market, and the third bearish candle shows that the bears are back in the market and reversal is going to take place.
+
+The second candle should be completely out of the real bodies of first and third candle.
+
+Three Black Crows:
+The Three Black Crows is multiple candlestick pattern which is formed after an uptrend indicating bearish reversal.
+
+These candlesticks are made of three long bearish bodies which do not have long shadows and open within the real body of the previous candle in the pattern.
+
+Black Marubozu:
+The Black Marubozu is a single candlestick pattern which is formed after an uptrend indicating bearish reversal.
+
+This candlestick chart has a long bearish body with no upper or lower shadows which shows that the bears are exerting selling pressure and the markets may turn bearish.
+
+At the formation of this candle, the buyers should be caution and close their buying position.
+
+Three Inside Down:
+The Three Inside Down is multiple candlestick pattern which is formed after an uptrend indicating bearish reversal.
+
+It consists of three candlesticks, the first being a long bullish candle, the second candlestick being a small bearish which should be in the range the first candlestick.
+
+The third candlestick chart should be a long bearish candlestick confirming the bearish reversal.
+
+The relationship of the first and second candlestick should be of the bearish Harami candlestick pattern.
+
+Bearish Harami:
+The Bearish Harami is multiple candlestick pattern which is formed after the uptrend indicating bearish reversal.
+
+It consists of two candlesticks, the first candlestick being a tall bullish candle and second being a small bearish candle which should be in the range of the first candlestick chart.
+
+The first bullish candle shows the continuation of the bullish trend and the second candle shows that the bears are back in the market.
+
+Shooting Star:
+Shooting Star is formed at the end of the uptrend and gives bearish reversal signal.
+
+In this candlestick chart the real body is located at the end and there is long upper shadow. It is the inverse of the Hanging Man Candlestick pattern.
+
+Tweezer Top:
+The Tweezer Top pattern is a bearish reversal candlestick pattern that is formed at the end of an uptrend.
+
+It consists of two candlesticks, the first one being bullish and the second one being bearish candlestick. Both the tweezer candlestick make almost or the same high.
+
+When the Tweezer Top candlestick pattern is formed the prior trend is an uptrend. A bullish candlestick is formed which looks like the continuation of the ongoing uptrend.
+
+On the next day, the high of the second day’s bearish candle’s high indicates a resistance level. Bulls seem to raise the price upward, but now they are not willing to buy at higher prices.
+
+Three Outside Down:
+The Three Outside Down is multiple candlestick pattern which is formed after an uptrend indicating bearish reversal.
+
+It consists of three candlesticks, the first being a short bullish candle, the second candlestick being a large bearish candle which should cover the first candlestick.
+
+The third candlestick should be a long bearish candlestick confirming the bearish reversal.
+
+Three Outside Down:
+The Three Outside Down is multiple candlestick pattern which is formed after an uptrend indicating bearish reversal.
+
+It consists of three candlesticks, the first being a short bullish candle, the second candlestick being a large bearish candle which should cover the first candlestick.
+
+The third candlestick should be a long bearish candlestick confirming the bearish reversal.
+
+Doji:
+Doji pattern is a candlestick pattern of indecision which is formed when the opening and closing prices are almost equal.
+
+It is formed when both the bulls and bears are fighting to control prices but nobody succeeds in gaining full control of the prices.
+
+Spinning Top:
+The spinning top candlestick pattern is same as the Doji indicating indecision in the market.
+
+The only difference between spinning top and doji is in their formation, the real body of the spinning is larger as compared to Doji.
+
+Falling Three Methods:
+The “falling three methods” is a bearish, five candle continuation pattern which signals an interruption, but not a reversal, of the ongoing downtrend.
+
+The candlestick pattern is made of two long candlestick charts in the direction of the trend i.e downtrend at the beginning and end, with three shorter counter-trend candlesticks in the middle.
+
+Rising Three Methods:
+The “rising three methods” is a bullish, five candle continuation pattern which signals an interruption, but not a reversal, of the ongoing uptrend.
+
+The candlestick pattern is made of two long candlesticks in the direction of the trend i.e uptrend  in this case. at the beginning and end, with three shorter counter-trend candlesticks in the middle.
+
+Upside Tasuki Gap:
+It is a bullish continuation candlestick pattern which is formed in an ongoing uptrend.
+
+This candlestick pattern consists of three candles, the first candlestick is a long-bodied bullish candlestick, and the second candlestick is also a bullish candlestick chart formed after a gap up.
+
+The third candlestick is a bearish candle that closes in the gap formed between these first two bullish candles.
+
+Downside Tasuki Gap:
+It is a bearish continuation candlestick pattern which is formed in an ongoing downtrend.
+
+This candlestick pattern consists of three candles, the first candlestick is a long-bodied bearish candlestick, and the second candlestick is also a bearish candlestick formed after a gap down.
+
+The third candlestick is a bullish candle that closes in the gap formed between these first two bearish candles.
+
+Mat-Hold-
+A mat hold pattern is a candlestick formation indicating the continuation of a prior trend.
+
+There can be either bearish or bullish mat hold patterns. A bullish pattern begins with a large bullish candle followed by a gap higher and three smaller candles which move lower.

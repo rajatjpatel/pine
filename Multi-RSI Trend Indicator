@@ -1,0 +1,25 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © bursatrader
+
+//RSI 14 crosses up over RSI 250 when RSI 250 > 50 indicates a strong and high probability uptrend or reversal. Can be further confirmed by MACD Golden Cross.
+
+
+//@version=4
+study(title="Multi-RSI Trend Indicator", shorttitle="Multi-RSI Trend Indicator", overlay=false)
+rsiSource1 = input(title="RSI Source1", type=input.source, defval=close)
+rsiLength1 = input(title="RSI Length1", type=input.integer, defval=14)
+rsiValue1 = rsi(rsiSource1, rsiLength1)
+plot1 = plot(rsiValue1)
+
+rsiSource2 = input(title="RSI Source2", type=input.source, defval=close)
+rsiLength2 = input(title="RSI Length2", type=input.integer, defval=250)
+rsiValue2 = rsi(rsiSource2, rsiLength2)
+plot2 = plot(series=rsiValue2, color=rsiValue2 > 50 ? color.green : color.red)
+
+
+
+fillCond = false
+if( rsiValue1 > rsiValue2)
+    fillCond:= true
+
+fill(plot1, plot2, color = fillCond ? color.green : color.gray, transp=10)

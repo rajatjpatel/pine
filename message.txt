@@ -1,0 +1,470 @@
+//// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// ©Hotchachachaaa
+//@version=5
+MAX_LABELS = 100
+strategy("Hotch break strat", overlay=true, pyramiding=20, default_qty_type= strategy.percent_of_equity, default_qty_value = 1, calc_on_every_tick=true, slippage=0,commission_type=strategy.commission.percent,commission_value=0.014,max_labels_count = MAX_LABELS)
+strat_dir_input = input.string(title="Strategy Direction", defval="all", options=["long", "short", "all"])
+strat_dir_value = strat_dir_input == "long" ? strategy.direction.long : strat_dir_input == "short" ? strategy.direction.short : strategy.direction.all
+strategy.risk.allow_entry_in(strat_dir_value)
+//////////////////////////////////////////////////////////////////////
+ATRBandsOO = input.bool(title="ATR Bands", group="Features", defval= true)
+SessionOO = input.bool(title="Session", group="Features", defval= true)
+TSOO = input.bool(title="Trend SNEK", group="Features", defval= true)
+MA1OO = input.bool(title="MA 1", group="Features", defval= true)
+MA2OO = input.bool(title="MA 2", group="Features", defval= true)
+MA3OO = input.bool(title="MA 3", group="Features", defval= true)
+TPSLOO = input.bool(title="TP/SL", group="Features", defval= true)
+
+string sessionInput = input.session("0600-1800", "Session")
+string daysInput = input.string("1234567", tooltip = "1 = Sunday, 7 = Saturday")
+sessionString = sessionInput + ":" + daysInput
+inSession = not na(time(timeframe.period, sessionString))
+bgcolor(inSession ? color.new(color.silver,85) : na)
+
+// Testing Start End Dates
+
+testStartYear = input(2020, "Backtest Start Year")
+testStartMonth = input(10, "Backtest Start Month")
+testStartDay = input(1, "Backtest Start Day")
+testPeriodStart = timestamp(testStartYear,testStartMonth,testStartDay,0,0)
+
+//Stop date if you want to use a specific range of dates
+
+testStopYear = input(2030, "Backtest Stop Year")
+testStopMonth = input(12, "Backtest Stop Month")
+testStopDay = input(30, "Backtest Stop Day")
+testPeriodStop = timestamp(testStopYear,testStopMonth,testStopDay,0,0)
+
+
+testPeriod() =>
+    time >= testPeriodStart and time <= testPeriodStop ? true : false
+    
+
+//--------------------------------------------------------------Code Insert----------------------------------------------------------
+
+////////////////hoffman ignition bar
+z = input.int (defval=45, title="Inventory Retracement Percentage %", maxval=100)
+
+// Candle Range
+a = math.abs(high - low)
+// Candle Body
+b = math.abs(close - open)
+// Percent to Decimal
+c = z/100
+
+// Range Verification 
+rv = b < c*a
+
+// Price Level for Retracement
+x = low + (c * a)
+y = high - (c * a)
+
+sl = rv == 1 and high > y and close < y and open < y 
+ss = rv == 1 and low < x and close > x and open > x 
+ignitionbar = (high[1]-low[1])<((high-low)/2) and ss[1]
+plotshape(ignitionbar,location=location.belowbar, color=color.purple, style=shape.triangleup, size = size.small)
+////////////////////////////////////////////////////////////////fractals
+// Define "n" as the number of periods and keep a minimum value of 2 for error handling.
+n = input.int(title="Periods", defval=2, minval=2)
+
+
+// UpFractal
+bool upflagDownFrontier = true
+bool upflagUpFrontier0 = true
+bool upflagUpFrontier1 = true
+bool upflagUpFrontier2 = true
+bool upflagUpFrontier3 = true
+bool upflagUpFrontier4 = true
+
+for i = 1 to n
+    upflagDownFrontier := upflagDownFrontier and (high[n-i] < high[n])
+    upflagUpFrontier0 := upflagUpFrontier0 and (high[n+i] < high[n])
+    upflagUpFrontier1 := upflagUpFrontier1 and (high[n+1] <= high[n] and high[n+i + 1] < high[n])
+    upflagUpFrontier2 := upflagUpFrontier2 and (high[n+1] <= high[n] and high[n+2] <= high[n] and high[n+i + 2] < high[n])
+    upflagUpFrontier3 := upflagUpFrontier3 and (high[n+1] <= high[n] and high[n+2] <= high[n] and high[n+3] <= high[n] and high[n+i + 3] < high[n])
+    upflagUpFrontier4 := upflagUpFrontier4 and (high[n+1] <= high[n] and high[n+2] <= high[n] and high[n+3] <= high[n] and high[n+4] <= high[n] and high[n+i + 4] < high[n])
+flagUpFrontier = upflagUpFrontier0 or upflagUpFrontier1 or upflagUpFrontier2 or upflagUpFrontier3 or upflagUpFrontier4
+
+upFractal = (upflagDownFrontier and flagUpFrontier)
+
+
+// downFractal
+bool downflagDownFrontier = true
+bool downflagUpFrontier0 = true
+bool downflagUpFrontier1 = true
+bool downflagUpFrontier2 = true
+bool downflagUpFrontier3 = true
+bool downflagUpFrontier4 = true
+
+for i = 1 to n
+    downflagDownFrontier := downflagDownFrontier and (low[n-i] > low[n])
+    downflagUpFrontier0 := downflagUpFrontier0 and (low[n+i] > low[n])
+    downflagUpFrontier1 := downflagUpFrontier1 and (low[n+1] >= low[n] and low[n+i + 1] > low[n])
+    downflagUpFrontier2 := downflagUpFrontier2 and (low[n+1] >= low[n] and low[n+2] >= low[n] and low[n+i + 2] > low[n])
+    downflagUpFrontier3 := downflagUpFrontier3 and (low[n+1] >= low[n] and low[n+2] >= low[n] and low[n+3] >= low[n] and low[n+i + 3] > low[n])
+    downflagUpFrontier4 := downflagUpFrontier4 and (low[n+1] >= low[n] and low[n+2] >= low[n] and low[n+3] >= low[n] and low[n+4] >= low[n] and low[n+i + 4] > low[n])
+flagDownFrontier = downflagUpFrontier0 or downflagUpFrontier1 or downflagUpFrontier2 or downflagUpFrontier3 or downflagUpFrontier4
+
+downFractal = (downflagDownFrontier and flagDownFrontier)
+
+
+////////////////////////////////////////////////////////////////////// Trend SNEK
+//gather user input for lookback
+TRL=input.int(10, minval=2, title="Trading Range Lookback", group = "Trend SNEK")
+
+
+//request data for bar highs and lows
+highestHighs = ta.highest(high, TRL)[1]
+lowestLows   = ta.lowest(low, TRL)[1]
+
+//plot bar highes and lows and plot BG colored with potential breakouts.
+highestPlotColor= (TSOO ? color.green :na)
+lowestPlotColor= (TSOO ? color.red :na)
+midPlotColor= (TSOO ? color.blue :na)
+highestPlot = plot(highestHighs, color=highestPlotColor, linewidth=1, title="SNEK Upper")
+lowestPlot = plot(lowestLows, color=lowestPlotColor, linewidth=1, title="SNEK Lower")
+middle = highestHighs - ((highestHighs - lowestLows)/2)
+plot(middle, color= midPlotColor, title = "Snek Mid")
+
+fillSnekBull= (TSOO ? color.new(color.green, 75) :na)
+fillSnekBear= (TSOO ? color.new(color.red, 75) :na)
+
+fill(highestPlot, lowestPlot, color= high>highestHighs[1] ? fillSnekBull : low<lowestLows[1]  ? fillSnekBear : na ,  title = "SNEK Trend Fill")
+
+/////////////////////moving averages
+averageSource = input(close, title="Source",group="Moving Averages")
+typeofMA1 = input.string(title="Type of Moving Average", defval="EMA", options=["RMA", "SMA", "EMA", "WMA", "VWMA", "SMMA", "TMA", "HullMA", "DEMA", "TEMA", "VWAP"],group="Moving Averages")
+length_ma1 = input.int(21, title = "[ALL but VWAP] Length of Moving Average 1",group="Moving Averages")
+typeofMA2 = input.string(title="Type of Moving Average", defval="EMA", options=["RMA", "SMA", "EMA", "WMA", "VWMA", "SMMA", "TMA", "HullMA", "DEMA", "TEMA", "VWAP"],group="Moving Averages")
+length_ma2 = input.int(50, title = "[ALL but VWAP] Length of Moving Average 2",group="Moving Averages")
+typeofMA3 = input.string(title="Type of Moving Average", defval="EMA", options=["RMA", "SMA", "EMA", "WMA", "VWMA", "SMMA", "TMA", "HullMA", "DEMA", "TEMA", "VWAP"],group="Moving Averages")
+length_ma3 = input.int(100, title = "[ALL but VWAP] Length of Moving Average 2",group="Moving Averages")
+
+
+f_smma(averageSource, averageLength) =>
+    smma = 0.0
+    smma := na(smma[1]) ? ta.sma(averageSource, averageLength) : (smma[1] * (averageLength - 1) + averageSource) / averageLength
+    smma
+
+f_hullma(averageSource, averageLength) =>
+    ta.wma(2 * ta.wma(averageSource, averageLength / 2) - ta.wma(averageSource, averageLength), math.round(math.sqrt(averageLength)))
+
+f_tma(averageSource, averageLength) =>
+    ta.sma(ta.sma(averageSource, averageLength), averageLength)
+
+f_dema(averageSource, averageLength) =>
+    emaValue = ta.ema(averageSource, averageLength)
+    2 * emaValue - ta.ema(emaValue, averageLength)
+
+f_tema(averageSource, averageLength) =>
+    ema1 = ta.ema(averageSource, averageLength)
+    ema2 = ta.ema(ema1, averageLength)
+    ema3 = ta.ema(ema2, averageLength)
+    (3 * ema1) - (3 * ema2) + ema3 
+
+f_ma(smoothing, averageSource, averageLength) =>
+	switch str.upper(smoothing)
+        "SMA"  => ta.sma(averageSource, averageLength)
+        "EMA"  => ta.ema(averageSource, averageLength)
+        "WMA"  => ta.wma(averageSource, averageLength)
+        "HMA"  => ta.hma(averageSource, averageLength)
+        "RMA"  => ta.rma(averageSource, averageLength)
+        "SWMA" => ta.swma(averageSource)
+        "ALMA" => ta.alma(averageSource, averageLength, 0.85, 6)
+        "VWMA" => ta.vwma(averageSource, averageLength)
+        "VWAP" => ta.vwap(averageSource)
+        => runtime.error("Moving average type '" + smoothing + 
+             "' not found!"), na
+MA1 = f_ma(typeofMA1, averageSource, length_ma1)
+MA2 = f_ma(typeofMA2, averageSource, length_ma2)
+MA3 = f_ma(typeofMA3, averageSource, length_ma3)
+ 
+plot_ma1 = plot(MA1, color= MA1OO ? color.new(color.green, 0) :na, linewidth=1, title = "MA1")
+plot_ma2 = plot(MA2, color=MA2OO ? color.new(color.red, 0) :na , linewidth=1, title = "MA2")
+plot_ma3 = plot(MA3, color= MA3OO ? color.new(color.blue, 0) :na, linewidth=1, title = "MA3")
+
+
+
+rsiSource = input.source(title="RSI Source",  defval=close)
+rsiLength = input.int(title="RSI Length",  defval=14)
+rsiOverbought = input.int(title="RSI Overbought", defval=75)
+rsiOversold = input.int(title="RSI Oversold", defval=25)
+rsiLookback = input.int(title="RSI Lookback", defval=3)
+rsiValue = ta.rsi(rsiSource, rsiLength)
+ifRsiB40 = ta.lowest(rsiValue,rsiLookback)<= 35 and ta.lowest(rsiValue,rsiLookback)>30
+ifRsiB30 = ta.lowest(rsiValue,rsiLookback)<= 30 and ta.lowest(rsiValue,rsiLookback)>20
+ifRsiB20 = ta.lowest(rsiValue,rsiLookback)<= 20 and ta.lowest(rsiValue,rsiLookback)>0
+
+
+
+plotB40 = ifRsiB40 and (downflagDownFrontier and flagDownFrontier)
+plotB30 = ifRsiB30 and (downflagDownFrontier and flagDownFrontier)
+plotB20 = ifRsiB20 and (downflagDownFrontier and flagDownFrontier)
+
+//plotshape(plotB40,  location=location.belowbar, offset=-n, color=#B0FF9E, style=shape.triangleup, size = size.small )  
+//plotshape(plotB30,  location=location.belowbar, offset=-n, color=#1EFF00, style=shape.triangleup, size = size.small )  
+//plotshape(plotB20,  location=location.belowbar, offset=-n, color=#0A5200, style=shape.triangleup, size = size.small )  
+
+
+
+ifRsiO60 = ta.highest(rsiValue,rsiLookback)>= 65 and ta.highest(rsiValue,rsiLookback)<70
+ifRsiO70 = ta.highest(rsiValue,rsiLookback)>= 70 and ta.highest(rsiValue,rsiLookback)<80
+ifRsiO80 = ta.highest(rsiValue,rsiLookback)>= 80 and ta.highest(rsiValue,rsiLookback)<100
+
+
+plotO60 = ifRsiO60 and (upflagDownFrontier and flagUpFrontier)
+plotO70 = ifRsiO70 and (upflagDownFrontier and flagUpFrontier)
+plotO80 = ifRsiO80 and (upflagDownFrontier and flagUpFrontier)
+
+
+//plotshape(plotO60,  location=location.abovebar, offset=-n, color=#FF9B94, style=shape.triangledown, size = size.small )
+//plotshape(plotO70,  location=location.abovebar, offset=-n, color=#FF0008, style=shape.triangledown, size = size.small )
+//plotshape(plotO80,  location=location.abovebar, offset=-n, color=#750004, style=shape.triangledown, size = size.small )
+
+//Get RSI Value
+
+ifRsiOB = rsiValue>= rsiOverbought
+ifRsiOS = rsiValue<= rsiOversold
+
+wasRsiOB = ta.barssince(ifRsiOB) < rsiLookback
+wasRsiOS = ta.barssince(ifRsiOS) < rsiLookback
+
+
+crossunderA = ta.crossunder(close,lowestLows)
+osSignal= wasRsiOS and downFractal //
+obSignal= wasRsiOB and upFractal 
+
+plotshape(obSignal,  location=location.abovebar, color=color.orange, style=shape.diamond, size = size.small )
+plotshape(osSignal,  location=location.belowbar, color=color.blue, style=shape.diamond, size = size.small )  
+
+
+///////////////////////////////////////////////////////Support and Resistance lines////////////////////////////////////////////////////////////
+toggleBreaksST1  = input(true, title = "Show Breaks ST1" )
+leftBarsST1  = input(5, title = "Left Bars ST1")
+rightBarsST1  = input(5, title = "Right Bars ST1")
+volumeThreshST1  = input(0, title = "Volume Threshold ST1")
+//
+highUsePivotST1 = fixnan(ta.pivothigh(leftBarsST1, rightBarsST1)[1])
+lowUsePivotST1 = fixnan(ta.pivotlow(leftBarsST1, rightBarsST1)[1])
+r1ST1 = plot(highUsePivotST1, color=ta.change(highUsePivotST1) ? na : #FF0000,  linewidth=3, offset=-(rightBarsST1+1), title="Resistance ST1")
+s1ST1 = plot(lowUsePivotST1, color=ta.change(lowUsePivotST1) ? na : #233dee,  linewidth=3, offset=-(rightBarsST1+1), title="Support ST1")
+
+//Volume %
+shortST1 = ta.ema(volume, 5)
+longST1 = ta.ema(volume, 10)
+oscST1 = 100 * (shortST1 - longST1) / longST1
+
+
+    
+//For breaks with volume
+plotshape(toggleBreaksST1 and ta.crossunder(close,lowUsePivotST1) and not (open - close < high - open) and oscST1 > volumeThreshST1, title = "Break", text = 'B', style = shape.labeldown, location = location.abovebar, color= color.red,textcolor = color.white, size = size.tiny)
+plotshape(toggleBreaksST1 and ta.crossover(close,highUsePivotST1 ) and not(open - low > close - open) and oscST1 > volumeThreshST1, title = "Break", text = 'B', style = shape.labelup, location = location.belowbar, color= color.blue,textcolor = color.white, size = size.tiny)
+
+//For bull / bear wicks
+plotshape(toggleBreaksST1 and ta.crossover(close,highUsePivotST1) and open - low > close - open , title = "Break", text = 'Bull Wick', style = shape.labelup, location = location.belowbar, color= color.blue,textcolor = color.white, size = size.tiny)
+plotshape(toggleBreaksST1 and ta.crossunder(close,lowUsePivotST1) and open - close < high - open , title = "Break", text = 'Bear Wick', style = shape.labeldown, location = location.abovebar, color= color.red,textcolor = color.white, size = size.tiny)
+
+
+//alertcondition(ta.crossunder(close,lowUsePivot) and osc > volumeThresh , title = "Support Broken" , message = "Support Broken")
+//alertcondition(ta.crossover(close,highUsePivot) and osc > volumeThresh, title = "Resistance Broken" , message = "Resistance Broken")
+
+toggleBreaksST2  = input(true, title = "Show Breaks ST2" )
+leftBarsST2  = input(15, title = "Left Bars ST2")
+rightBarsST2  = input(15, title = "Right Bars ST2")
+volumeThreshST2  = input(0, title = "Volume Threshold ST2")
+//
+highUsePivotST2 = fixnan(ta.pivothigh(leftBarsST2, rightBarsST2)[1])
+lowUsePivotST2 = fixnan(ta.pivotlow(leftBarsST2, rightBarsST2)[1])
+r1ST2 = plot(highUsePivotST2, color=ta.change(highUsePivotST2) ? na : color.yellow,  linewidth=3, offset=-(rightBarsST2+1), title="Resistance")
+s1ST2 = plot(lowUsePivotST2, color=ta.change(lowUsePivotST2) ? na : color.purple,  linewidth=3, offset=-(rightBarsST2+1), title="Support")
+
+//Volume %
+shortST2 = ta.ema(volume, 5)
+longST2 = ta.ema(volume, 10)
+oscST2 = 100 * (shortST2 - longST2) / longST2
+
+pivotCountInputHI = input.int(5, "How many pivots to show", minval = 0, maxval = MAX_LABELS)
+pivotLegsInputHI  = leftBarsST1
+// Create an array containing the user-selected max count of label IDs.
+var labelIdsHI = array.new_label(pivotCountInputHI)
+
+pHi = ta.pivothigh(pivotLegsInputHI, pivotLegsInputHI)
+if not na(pHi)
+    // New pivot found; plot its label `i_pivotLegs` bars back.
+    pLabelHI = label.new(bar_index[pivotLegsInputHI], pHi, str.tostring(pHi, format.mintick), textcolor = color.white)
+    // Queue the new label's ID by appending it to the end of the array.
+    array.push(labelIdsHI, pLabelHI)
+    // De-queue the oldest label ID from the queue and delete the corresponding label.
+    label.delete(array.shift(labelIdsHI))
+
+pivotCountInputLO = input.int(5, "How many pivots to show", minval = 0, maxval = MAX_LABELS)
+pivotLegsInputLO = leftBarsST1
+
+// Create an array containing the user-selected max count of label IDs.
+var labelIdsLO = array.new_label(pivotCountInputLO)
+
+pLo = ta.pivotlow(pivotLegsInputLO, pivotLegsInputLO)
+if not na(pLo)
+    // New pivot found; plot its label `i_pivotLegs` bars back.
+    pLabelLO = label.new(bar_index[pivotLegsInputLO], pLo, str.tostring(pLo, format.mintick), textcolor = color.white)
+    // Queue the new label's ID by appending it to the end of the array.
+    array.push(labelIdsLO, pLabelLO)
+    // De-queue the oldest label ID from the queue and delete the corresponding label.
+    label.delete(array.shift(labelIdsLO))
+    
+
+
+
+//For breaks with volume
+plotshape(toggleBreaksST2 and ta.crossunder(close,lowUsePivotST2) and not (open - close < high - open) and oscST2 > volumeThreshST2, title = "Break", text = 'B', style = shape.labeldown, location = location.abovebar, color= color.yellow,textcolor = color.white, size = size.tiny)
+plotshape(toggleBreaksST2 and ta.crossover(close,highUsePivotST2 ) and not(open - low > close - open) and oscST2 > volumeThreshST2, title = "Break", text = 'B', style = shape.labelup, location = location.belowbar, color= color.purple,textcolor = color.white, size = size.tiny)
+
+//For bull / bear wicks
+plotshape(toggleBreaksST2 and ta.crossover(close,highUsePivotST2 ) and open - low > close - open , title = "Break", text = 'Bull Wick', style = shape.labelup, location = location.belowbar, color= color.purple,textcolor = color.white, size = size.tiny)
+plotshape(toggleBreaksST2 and ta.crossunder(close,lowUsePivotST2) and open - close < high - open , title = "Break", text = 'Bear Wick', style = shape.labeldown, location = location.abovebar, color= color.yellow,textcolor = color.white, size = size.tiny)
+  
+///////////////////////ATR ,group = "ATR ST"
+import Electrified/SupportResitanceAndTrend/4 as SRT
+
+ATR = "ATR for SuperTrend", CONFIRM = "Confirmation", DISPLAY = "Display"
+WMA = "WMA", EMA = "EMA", SMA = "SMA", VWMA = "VWMA", VAWMA = "VAWMA"
+
+mode = input.string(VWMA, "Mode", options=[SMA,EMA,WMA,VWMA,VAWMA], group=ATR, tooltip="Selects which averaging function will be used to determine the ATR value.")
+atrPeriod = input.int(120, "Period", group=ATR, tooltip="The number of bars to use in calculating the ATR value.")
+atrM = input.float(3.0, title="Multiplier", step=0.5, group=ATR, tooltip="The multiplier used when defining the super trend limits.")
+maxDeviation = input.float(0, title="Max Deviation", minval=0, step=0.5, group=ATR, tooltip="The maximum deviation of the true range before being considered and outlier.\nA value of zero (default) results in no filtering.")
+
+closeBars = input.int(2, "Closed Bars", minval = 0, group=CONFIRM, tooltip="The number of closed bars that have to exceed the super-trend value before the trend reversal is confirmed.")
+
+
+[trend, up, dn, unconfirmed, warn, reversal] =
+  SRT.superTrend(atrM, atrPeriod, mode, closeBars, maxDeviation)
+
+//upPlot = plot(trend==1 ? up : na, title="Up Trend", style=plot.style_linebr, linewidth=2, color=unconfirmed==0?color.green:color.yellow)
+buySignal = trend == 1 and trend[1] == -1
+//plotshape(buySignal ? up : na, title="UpTrend Begins", location=location.absolute, style=shape.square, size=size.tiny, color=color.green)
+//plotshape(buySignal and showsignals ? up : na, title="Buy", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.green, textcolor=color.white)
+//dnPlot = plot(trend==1 ? na : dn, title="Down Trend", style=plot.style_linebr, linewidth=2, color=unconfirmed==0?color.red:color.yellow)
+sellSignal = trend == -1 and trend[1] == 1
+//plotshape(sellSignal ? dn : na, title="DownTrend Begins", location=location.absolute, style=shape.square, size=size.tiny, color=color.red)
+//plotshape(sellSignal and showsignals ? dn : na, title="Sell", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white)
+//mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
+//longFillColor = color.new(highlighting ? (trend == 1 ? color.green : color.white) : color.white, 75)
+//shortFillColor = color.new(highlighting ? (trend == -1 ? color.red : color.white) : color.white, 75)
+//fill(mPlot, upPlot, title="UpTrend Highligter", color=longFillColor)
+//fill(mPlot, dnPlot, title="DownTrend Highligter", color=shortFillColor)
+
+colorBody = trend==1 ? color.lime : trend==-1 ? color.red:na 
+plotcandle(open, high, low, close, title='SuperTrend Candles', color =colorBody, bordercolor=colorBody,wickcolor=colorBody)
+///////////////////////////////////////////DMI
+entrythreshold = input.int(50, minval=1, title="DI Entry Threshold")
+
+normalize(_src, _min, _max) => 
+    var _historicMin = 10e10
+    var _historicMax = -10e10
+    _historicMin := math.min(nz(_src, _historicMin), _historicMin)
+    _historicMax := math.max(nz(_src, _historicMax), _historicMax)
+    _min + (_max - _min) * (_src - _historicMin) / math.max(_historicMax - _historicMin, 10e-10)
+
+normalisedObv = normalize(ta.obv, -100, 100)
+smaLength = input(title="OBV SMA length", defval=55)
+normalisedOBVsma = ta.sma(normalisedObv, smaLength)
+//plot(normalisedObv,  color=color.gray, linewidth=2, title="OBV")
+//plot(normalisedOBVsma, color=color.orange, linewidth=1, title="OBV SMA")
+
+adxLength = input.int(14, minval=1, title="DI length")
+lensig = input.int(14, title="ADX Smoothing", minval=1, maxval=50)
+[diplus, diminus, adx] = ta.dmi(adxLength, lensig)
+adxSma = input.int(2, minval=1, title="ADX SMA length")
+
+normalisedAdx = normalize(ta.sma(adx, adxSma), 0, 100)
+normalisedDirPlus = normalize(ta.sma(diplus, adxSma), 0, 100) 
+normalisedDirMinus = normalize(ta.sma(diminus, adxSma), 0, 100)
+//plot(normalisedAdx, color=normalisedDirPlus[1] > normalisedDirMinus and normalisedDirPlus > normalisedDirMinus ? color.green : color.red, linewidth=2)
+//plot(normalisedDirPlus, color=color.green, title="+DI")
+//plot(normalisedDirMinus, color=color.red, title="-DI")
+
+
+bullColor = color.new(color.lime,25)
+bearColor = color.new(color.fuchsia,25)
+
+// Generate a bull gradient when position is 50-100%, bear gradient when position is 0-50%.
+bColor = if normalisedDirPlus > normalisedDirMinus
+    color.from_gradient(normalisedAdx,0, 100, color.new(bullColor, 100), bullColor)
+else
+    color.from_gradient(100-normalisedAdx,0, 100, bearColor, color.new(bearColor, 100))
+
+
+// TP and SL ATR ,group= "Take Profit and Stop Loss"
+atrPeriodsltp = input.int(title = "ATR Period for TP & SL", defval = 14, minval = 1,group= "Take Profit and Stop Loss")
+srcUpper = input(title = "Source TP",  defval = close,group= "Take Profit and Stop Loss")
+srcLower = input(title = "Source SL",  defval = close,group= "Take Profit and Stop Loss")
+atrMultiplierTP = input(title = "ATR Multiplier TP", defval = 3,group= "Take Profit and Stop Loss")
+atrMultiplierSL = input(title = "ATR Multiplier SL", defval = 1,group= "Take Profit and Stop Loss")
+
+// TP and SL ATR
+atr = ta.atr(atrPeriodsltp)
+colorATRUpper = (trend==1  ? color.lime : trend==-1 ? color.red :  na )
+colorATRLower = (trend==-1 ? color.lime : trend==1 ? color.red :  na )
+
+ATRUpper = trend == 1 ? (srcUpper + atr * atrMultiplierTP) : trend == -1 ? (srcUpper + atr * atrMultiplierSL) :na
+ATRLower = trend == 1 ? (srcLower - atr * atrMultiplierSL) : trend == -1 ? (srcLower - atr * atrMultiplierTP) :na
+
+
+plot(ATRUpper,title="TP/SL Upper",color =ATRBandsOO ? colorATRUpper :na, offset=1 )
+plot(ATRLower,title="TP/SL lower",color =ATRBandsOO ? colorATRLower :na, offset=1 )
+
+
+
+/////////////////////////////////////////////////////// Long and Short Conditions /////////////////////////////////////////////////////////////
+entryType= input.string(title="Sup/Res Entry", defval="ST1",options= ["ST1","ST2"], group= "Trade Logic")
+pipsby= input.int(title = "Pips", defval = 20, minval = 1)
+slcalc = input.string(title="SL Calculation type", defval="ATR",options= ["ATR","Pips"], group= "Trade Logic")
+pipsMult= input.int(title = "Pip Multiplier", defval = 3, minval = 1)
+
+
+varip float currentLongSL= na
+varip float currentShortSL= na             
+varip float currentLongTP= na
+varip float currentShortTP= na
+varip float closeLast =na 
+varip float lowUsePivotAtTimeOfEntry = na
+varip float highUsePivotAtTimeOfEntry = na
+
+shortcondition =    (entryType =="ST1" ? ta.crossover(close,highUsePivotST1)  and trend ==1 : entryType =="ST2" ? ta.crossover(close,highUsePivotST2)  and trend ==1  :na) and normalisedDirPlus < normalisedDirMinus //  add condition unless recent osSignal and bull or hbull divergence. 
+longcondition =    (entryType =="ST1" ? ta.crossunder(close,lowUsePivotST1)  and  trend ==-1 : entryType =="ST2" ? ta.crossunder(close,lowUsePivotST2)  and  trend ==-1  :na) and normalisedDirPlus > normalisedDirMinus //  add condition unless recent obSignal and bear or hbear divergence. 
+
+longCloseCondition =  ta.crossunder(low,currentLongSL) or ta.crossover(high,currentLongTP) or ta.crossunder(close,lowUsePivotST2) and not (open - close < high - open)
+shortCloseCondition =   ta.crossover(high,currentShortSL) or ta.crossunder(low,currentShortTP) or ta.crossover(close,highUsePivotST2 ) and not(open - low > close - open)
+
+
+
+// Place Orders
+
+if (longcondition) and testPeriod() and strategy.position_size == 0
+    closeLast := close
+    currentLongSL := slcalc == "ATR" ? ATRLower : slcalc == "Pips" ? low[1] - (20 *syminfo.mintick) : na
+    currentLongTP := slcalc == "ATR" ? ATRUpper : slcalc == "Pips" ? math.abs(close- currentLongSL)*pipsMult + close : na
+    strategy.entry("Long", strategy.long)
+
+if (shortcondition) and testPeriod() and strategy.position_size == 0
+    closeLast := close
+    currentLongSL := slcalc == "ATR" ? ATRLower : slcalc == "Pips" ? low[1] - (20 *syminfo.mintick) : na
+    currentLongTP := slcalc == "ATR" ? ATRUpper : slcalc == "Pips" ? math.abs(close- currentLongSL)*pipsMult + close : na
+    strategy.entry("Short", strategy.long)
+
+
+
+l2= plot(strategy.position_size <= 0 ? na : currentLongSL, color=color.red,  linewidth=2, join = false,style=plot.style_linebr)
+l1=plot(strategy.position_size <= 0 ? na : currentLongTP, color=color.green,  linewidth=2, join = false,style=plot.style_linebr)
+closeLast1 =plot(strategy.position_size <= 0 ? na : closeLast, color=color.blue, linewidth=2, join = false,style=plot.style_linebr)
+s2 =plot(strategy.position_size >= 0 ? na : currentShortSL, color=color.red,  linewidth=2, join = false,style=plot.style_linebr)
+s1= plot(strategy.position_size >= 0 ? na : currentShortTP, color=color.green,  linewidth=2,join = false,style=plot.style_linebr)
+closeLast2 =plot(strategy.position_size >= 0 ? na : closeLast, color=color.blue, linewidth=2, join = false,style=plot.style_linebr)
+
+fill(closeLast1,l2,color=color.new(color.red, 90))
+fill(closeLast1,l1,color=color.new(color.green, 90))
+fill(closeLast2,s2,color=color.new(color.red, 90))
+fill(closeLast2,s1,color=color.new(color.green, 90))
+strategy.close("Long",longCloseCondition)
+strategy.close("Short",shortCloseCondition)

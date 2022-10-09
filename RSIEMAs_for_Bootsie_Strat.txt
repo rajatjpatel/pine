@@ -1,0 +1,44 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RajeshMoriyani
+//@version=5
+indicator("RSI+EMAs for  Bootsie Strat", shorttitle="RSI+EMAs")
+
+RSI_SETTINGS = "RSI Settings"
+rsiLengthInput = input.int(14, minval=1, title="RSI Length", group=RSI_SETTINGS)
+rsiSourceInput = input.source(hlcc4, "Source", group=RSI_SETTINGS)
+
+EMA_SETTINGS = "EMA Settings"
+maLengthInput1 = input.int(3, title="EMA1", group=EMA_SETTINGS)
+maLengthInput2 = input.int(5, title="EMA2", group=EMA_SETTINGS)
+maLengthInput3 = input.int(8, title="EMA3", group=EMA_SETTINGS)
+maLengthInput4 = input.int(13, title="EMA4", group=EMA_SETTINGS)
+maLengthInput5 = input.int(15, title="EMA5", group=EMA_SETTINGS)
+
+H_LINES = "Horizontal Lines/Levels"
+h_line_color = input(color.new(color.white, 70), "", inline="HLines", group=H_LINES)
+hLine1 = input(80, "Level-1", inline="HLines1", group=H_LINES)
+hLine2 = input(70, "Level-2", inline="HLines2", group=H_LINES)
+hLine3 = input(50, "Level-3", inline="HLines3", group=H_LINES)
+hLine4 = input(20, "Level-4", inline="HLines4", group=H_LINES)
+hLine5 = input(10, "Level-5", inline="HLines5", group=H_LINES)
+
+line1 = hline(hLine1, "", color=(hLine1 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+line2 = hline(hLine2, "", color=(hLine2 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+line3 = hline(hLine3, "", color=(hLine3 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+line4 = hline(hLine4, "", color=(hLine4 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+line5 = hline(hLine5, "", color=(hLine5 > 0) ? h_line_color : na, linestyle=hline.style_dashed)
+
+rsi = ta.rsi(rsiSourceInput, rsiLengthInput)
+plot(rsi,"RSI", color= color.orange, linewidth=2)
+
+ma1 = ta.ema(rsi, maLengthInput1)
+ma2 = ta.ema(rsi, maLengthInput2)
+ma3 = ta.ema(rsi, maLengthInput3)
+ma4 = ta.ema(rsi, maLengthInput4)
+ma5 = ta.ema(rsi, maLengthInput5)
+
+plot(ma1,"EMA1", color= color.yellow)
+plot(ma2,"EMA2", color= color.white)
+plot(ma3,"EMA3", color= color.aqua)
+plot(ma4,"EMA4", color= color.teal)
+plot(ma5,"EMA5", color= color.lime)

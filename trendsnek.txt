@@ -1,0 +1,23 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// :copyright: plewis22782
+
+//@version=5
+
+//Thanks to the great folks at kodify for all their explainations of functions. 
+
+indicator("Trend SNEK", overlay=true)
+//gather user input for lookback
+TRL=input.int(10, minval=2, title="Trading Range Lookback", group = "Trading Range")
+
+//request data for bar highs and lows
+highestHighs = ta.highest(high, TRL)[1]
+lowestLows   = ta.lowest(low, TRL)[1]
+
+//plot bar highes and lows and plot BG colored with potential breakouts.
+
+highestPlot = plot(highestHighs, color=color.green, offset=0, linewidth=1, title="SMMA")
+lowestPlot = plot(lowestLows, color=color.red,offset=0, linewidth=1, title="SMMA")
+middle = highestHighs - ((highestHighs - lowestLows)/2)
+plot(middle)
+
+fill(highestPlot, lowestPlot, color= high>highestHighs[1] ? color.green : low<lowestLows[1]  ? color.red : na , transp=50, title = "Trend Fill")

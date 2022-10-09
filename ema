@@ -1,0 +1,6 @@
+indicator ("EMA 10/20/50/100/200", overlay=true)
+plot(ta.ema(close, 10), color=color.blue)
+plot(ta.ema(close, 20), color=color.green)
+plot(ta.ema(close, 50), color=color.yellow)
+plot(ta.ema(close, 100), color=color.orange)
+plot(ta.ema(close, 200), color=color.red)

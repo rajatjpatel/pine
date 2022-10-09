@@ -1,0 +1,77 @@
+// @version=4
+// @author=Daveatt
+
+// Cloud MM
+
+StudyName        = "BEST Cloud ALL MA"
+ShortStudyName   = "BEST Cloud ALL MA" 
+study(StudyName, shorttitle=ShortStudyName, overlay=true)
+
+source = input(close, title="Source")
+typeofMA1 = input(title="Type of Moving Average", defval="EMA", options=["RMA", "SMA", "EMA", "WMA", "VWMA", "SMMA", "TMA", "HullMA", "DEMA", "TEMA", "VWAP"])
+length_ma1 = input(30, title = "[ALL but VWAP] Length of Moving Average 1", type=input.integer)
+typeofMA2 = input(title="Type of Moving Average", defval="EMA", options=["RMA", "SMA", "EMA", "WMA", "VWMA", "SMMA", "TMA", "HullMA", "DEMA", "TEMA", "VWAP"])
+length_ma2 = input(74, title = "[ALL but VWAP] Length of Moving Average 2", type=input.integer)
+
+color_candles = input(true, title="Color based on trend?")
+
+f_smma(src, len) =>
+    smma = 0.0
+    smma := na(smma[1]) ? sma(src, len) : (smma[1] * (len - 1) + src) / len
+    smma
+
+f_hullma(src, length) =>
+    wma(2 * wma(src, length / 2) - wma(src, length), round(sqrt(length)))
+
+f_tma(src, length) =>
+    sma(sma(src, length), length)
+
+f_dema(src, length) =>
+    emaValue = ema(src, length)
+    2 * emaValue - ema(emaValue, length)
+
+f_tema(src, length) =>
+    ema1 = ema(src, length)
+    ema2 = ema(ema1, length)
+    ema3 = ema(ema2, length)
+    (3 * ema1) - (3 * ema2) + ema3 
+
+f_ma(smoothing, src, length) =>
+
+    iff(smoothing == "RMA",    rma(src, length), 
+     iff(smoothing == "SMA",    sma(src, length),
+     iff(smoothing == "EMA",    ema(src, length),
+     iff(smoothing == "WMA",    wma(src, length),
+     iff(smoothing == "VWMA",   vwma(src, length),
+     iff(smoothing == "SMMA",   f_smma(src, length),
+     iff(smoothing == "HullMA", f_hullma(src, length),
+     iff(smoothing == "VWAP",   vwap(hlc3),
+     iff(smoothing == "DEMA",   f_dema(src, length),
+     iff(smoothing == "TEMA",   f_tema(src, length), src))))))))))
+
+MA1 = f_ma(typeofMA1, source, length_ma1)
+MA2 = f_ma(typeofMA2, source, length_ma2)
+
+plot_ma1 = plot(MA1, color=color.new(color.green, 0), linewidth=3, title = "MA1")
+plot_ma2 = plot(MA2, color=color.new(color.red, 0), linewidth=3, title = "MA2")
+
+fill_color = MA1 > MA2 ? color.new(color.green, 60) : color.new(color.red, 60)
+fill(plot_ma1, plot_ma2, color=fill_color)
+
+// Candles coloring
+clr = not color_candles ? na : 
+ MA1 > MA2 ? color.new(color.lime, 40) : color.new(color.fuchsia, 40)
+
+barcolor(clr,title="Trend State Bar Colouring")
+
+cond_buy  = MA1 > MA2 and crossover(MA1, MA2)
+cond_sell = MA1 < MA2 and crossunder(MA1, MA2)
+
+// green triangle
+plotshape(cond_buy, style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.large)
+// red triangle
+plotshape(cond_sell, style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.large)
+
+
+alertcondition(cond_buy,  title='Buy Alert', message="Buy Alert")
+alertcondition(cond_sell,  title='Sell Alert', message="Sell Alert")

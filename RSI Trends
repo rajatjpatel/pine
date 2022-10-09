@@ -1,0 +1,20 @@
+//@version=4
+study(title="RSI Trends")
+len = input(14, title="RSI Length")
+ob = input(60, title="Upper Threshold")
+os = input(40, title="Lower Threshold")
+barcolor = input(true, title="Colored Bars")
+rsi = rsi(close, len)
+plot(rsi, color=color.gray)
+
+col1 = rsi >= ob ? color.green : na
+col2 = rsi <= os ? color.red : na
+col0 = rsi < ob and rsi > os ? color.gray : na
+plot1 = plot(rsi, style=plot.style_linebr, linewidth=3, color=col1)
+plot2 = plot(rsi, style=plot.style_linebr, linewidth=3, color=col2)
+
+barcolor(barcolor ? col1 : na)
+barcolor(barcolor ? col2 : na)
+barcolor(barcolor ? col0 : na)
+h1 = hline(ob)
+h2 = hline(os)

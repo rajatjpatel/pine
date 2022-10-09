@@ -1,0 +1,226 @@
+// This source code provided free and open-source as defined by the terms of the Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/)
+// with the following additional requirements:
+//
+// 1. Citations for sources and references must be maintained and updated when appropriate
+// 2. Links to strategy references included in indicator tooptips and/or alerts should be retained to give credit to the original source
+//             while also providing a freely available source of information on proper use and interpretation
+//
+// Author: SamAccountX
+//
+// I didn't like the poor way of setting alerts with the original version, nor the way the original settings were set up,
+// so I decided to make a copy and do some tweaks to help improve upon some of these gaps.
+// In addition to that, I added the ability to plot a customizable moving average of the TSI values.
+//
+// I also took this opportunity to update it to Pinescript v5, and updated the default input value to match the settings for Hawk's Strategy
+//     Vid Ref: <Redacted>
+//
+// Original author:  ZakariaBouguira
+// Source reference: https://www.tradingview.com/script/YlRZqh9x-True-Strength-Indicator-with-histogram
+//
+//@version=5
+indicator('TSI with histogram and MA - SamX', shorttitle='TSI Hist & MA')
+g_TSISettings = 'TSI Settings'
+long = input.int(title='Long-Preiod Length', defval=13, group=g_TSISettings, tooltip='Original default: 25')
+short = input.int(title='Short-Period Length', defval=6, group=g_TSISettings, tooltip='Original default: 13')
+signal = input.int(title='Signal Preiod Length', defval=4, group=g_TSISettings, tooltip='Original default: 13')
+priceSource = input.source(title='Source for price', defval=close, group=g_TSISettings, tooltip='Source for price information.  Default: Close')
+useRealPrice = input.bool(title='Force TSI calculations to use real price instead of chart price', defval=true, group=g_TSISettings, tooltip='If enabled (default), this option ' +
+                      'will force the indicator to pull actual price data for the source indicated above. \n\n' +
+                      'While the is not necessary for normal candlestick charts, it may be desirable for non-standard charts like Heiken Ashi, as the TV default behavior is ' +
+                      'to use values from the current chart type for open, high, low, and close.')
+showHist = input.bool(title='Show TSI Histogram', defval=true, group=g_TSISettings, tooltip='Show the TSI Histogram along the 0 line.  Default value: checked')
+showTSIFill = input.bool(title='Show TSI colored fill', defval=true, group=g_TSISettings, tooltip='Fill the area between the TSI and the TSI Signal.  Default fill color will be ' +
+					  'green if the TSI is above the signal line, and red if below the signal line. \n\n' +
+					  'Default value: checked')
+
+g_MASettings = "TSI Moving Average Settings"
+showFloatingTSIMA = input.bool(title='Show floating TSI Moving Average', defval=true, group=g_MASettings, tooltip='Show a floating moving average line for the TSI value.  ')
+maType = input.string(title='TSI Moving Average Calculation', group=g_MASettings, options=['Exponential', 'Simple', 'Smoothed', 'Weighted', 'Linear', 'Hull', 'Arnaud Legoux'], defval='Exponential', tooltip='Type of moving average calculation to use (default is Exponential (EMA)). \n\n' +
+                  'Only relevant when "Show floating TSI Moving Average" above is enabled.')
+maLength = input.int(title="TSI MA Length", defval=50, minval=1, step=1, group=g_MASettings, tooltip="Number of historical TSI values to use for calculating the MA value.  Lower numbers will react more quickly, while higher numbers will better depict longer trends.")
+
+g_ALMASettings = 'ALMA Additional Settings'
+almaSigma = input.float(title="Sigma", defval=6, minval=0, maxval=100, step=0.1, group=g_ALMASettings, tooltip='Standard deviation applied to the MA.  Higher values tend to make the line smoother.  Default: 6')
+almaOffset = input.float(title="Offset", defval=0.85, minval=0, maxval=1, step=0.01, group=g_ALMASettings, tooltip='Standard deviation applied to the MA.  Higher values tend to make the line smoother, while lower values make it more responsive.  Default: 0.85')
+
+g_OBOSSettings = 'Overbought/Oversold Settings'
+obLevel = input.int(title='Level', defval=50, minval=1, maxval=99, step=1, group=g_OBOSSettings, inline="obos")
+showOBOS = input.bool(title='Show OB/OS ', defval=true, group=g_OBOSSettings, inline="obos", tooltip='Show horizontal lines for over-bought and over-sold levels on the TSI. \n\n' +
+                 'Select the desired levels for the lines on the left (the overbought line will be above the zero line, oversold will be below the zero line). \n\n' +
+                 'The checkbox will enable/disable drawing the lines.')
+
+g_AlertSettings = "Alert Settings"
+useNewAlerts = input.bool(title='Use Indicator-native alerts', defval=true, group="Alert Settings", tooltip='If enabled (default), alerting will be handled natively by the indicator code instead of the general TradingView alerts. \n\n' +
+                 'This is helpful for users with the free version of TradingView as it has a limition of a single traditional alert by allowing the user to configure a single alert in Tradingview ' +
+                 'that will then be dynamically populated and evaluated by the indicator script itself. \n\n' +
+                 'To configure the TV alert for this, go to Create Alert.  In the Conditions section, select the name of the indicator for the first drop-down box, and in the second drop-down box you ' +
+                 'will select "Any alert() function call"')
+doTSICrossingSignalAlert = input.bool(title='TSI Crossing Signal Line', group=g_AlertSettings, defval=true, tooltip='Select this to trigger alerts when the TSI crosses the Signal line.  \n\n' +
+                 'This is the most common alert for TSI.')
+doTSICrossingMAAlert = input.bool(title='TSI Crossing Moving Average', group=g_AlertSettings, defval=true, tooltip='Select this to trigger alerts when the TSI crosses the floating moving average line. \n\n' +
+                 'Note: "Show floating TSI Moving Average" must be checked for this alert to trigger.')
+doTSICrossingOBOSAlert = input.bool(title='TSI Crossing OB/OS Lines', group=g_AlertSettings, defval=true, tooltip='Select this to trigger alerts when the TSI crosses the either the over-bought or over-sold line. \n\n' +
+                 'Note: "Show OB/OS" must be checked for this alert to trigger.')
+
+unusedInput = input(title='Additional info on TSI and how it might be used: https://www.investopedia.com/terms/t/tsi.asp', defval=true, group="Other")
+
+// Function to calculate smoothed moving average...
+smoothedMovingAvg(src, len) =>
+	smma = 0.0
+	// TV will complain about the use of the ta.sma function use inside a function saying that it should be called on each calculation,
+	// but since we're only using it once to set the initial value for the smoothed MA (when the previous smma value is NaN - Not a Number)
+	// and using the previous smma value for each subsequent iteration, this can be safely ignored
+	smma := na(smma[1]) ? ta.sma(src, len) : (smma[1] * (len - 1) + src) / len
+	smma
+
+// Explicitly define our ticker to help ensure that we're always getting ACTUAL price instead of relying on the input
+// ticker info and input vars (as they tend to inherit the type from what's displayed on the current chart)
+realPriceTicker = ticker.new(prefix=syminfo.prefix, ticker=syminfo.ticker)
+
+// This MAY be unnecessary, but in testing I've found some oddities when trying to use this on varying chart types
+// like on the HA chart, where the source referece for the price skews to the values for the current chart type
+// instead of the expected pure-price values.  For example, the 'source=close' reference - 'close' would be actual price
+// close on a normal candlestick chart, but would be the HA close on the HA chart.
+actualPrice = request.security(symbol=realPriceTicker, timeframe='', expression=priceSource, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+//price = priceSource
+price = useRealPrice ? actualPrice : priceSource
+double_smooth(src, long, short) =>
+    fist_smooth = ta.ema(src, long)
+    ta.ema(fist_smooth, short)
+pc = ta.change(price)
+double_smoothed_pc = double_smooth(pc, long, short)
+double_smoothed_abs_pc = double_smooth(math.abs(pc), long, short)
+tsi_value = 100 * (double_smoothed_pc / double_smoothed_abs_pc)
+signal_line = ta.ema(tsi_value, signal)
+
+hist = tsi_value - signal_line
+
+// Identify if TSI is above or below signal line
+tsiBullish = tsi_value > signal_line
+tsiBearish = tsi_value < signal_line
+
+// Plot the histogram first so it will be layered behind the TSI and TSI Signal lines
+plot(showHist == true ? hist : na, title='TSI Histogram', color=color.rgb(207, 80, 207, 70), style=plot.style_area)
+
+// mid-line
+hline(price=0, title='Zero (Mid Line)', color=color.rgb(127, 127, 127, 0), linestyle=hline.style_dashed)
+
+// Define the colors for the TSI so we can re-use them in the fill zone as well...
+tsiBullColor = color.rgb(0, 255, 0, 0)
+tsiBearColor = color.rgb(255, 0, 0, 0)
+// Plot the TSI and TSI Signal lines
+pSignal = plot(signal_line, title='TSI Signal Line', color=color.rgb(0, 127, 255, 0))
+pTSI = plot(tsi_value, title='TSI', color=tsiBullish ? tsiBullColor : tsiBearish ? tsiBearColor : color.rgb(127, 127, 127, 0), display=display.all)
+
+// TSI MA fun
+floatingMA = maType == 'Exponential' ? ta.ema(tsi_value, maLength) : maType == 'Simple' ? ta.sma(tsi_value, maLength) : maType == 'Weighted' ? ta.wma(tsi_value, maLength) : maType == 'Linear' ? ta.linreg(tsi_value, maLength, 0) : maType == 'Hull' ? ta.hma(tsi_value, maLength) : maType == 'Smoothed' ? smoothedMovingAvg(tsi_value, maLength) : maType == 'Arnaud Legoux' ? ta.alma(tsi_value, maLength, almaOffset, almaSigma) : na
+pFloatingMA = plot(showFloatingTSIMA ? floatingMA : na, title="TSI Floating MA", color=color.rgb(255, 255, 0, 0))
+
+// An added bonus - area fill between the TSI and the signal line, shaded to
+// indicate whether the TSI is above or below the signal line...
+//
+// Similar to the histogram, plot this first so that the lines end up on top of it...
+fillColor = tsiBullish ? color.new(tsiBullColor, 63) : tsiBearish ? color.new(tsiBearColor, 63) : na
+fill(pTSI, pSignal, color=showTSIFill ? fillColor : na, title='Fill Color')
+
+// Draw the OB/OS lines if enabled...
+osLevel = 0 - obLevel
+obLine = hline(price=showOBOS ? obLevel : na, title='OB Line', color=color.rgb(255, 0, 0, 15), linestyle=hline.style_dashed)
+osLine = hline(price=showOBOS ? osLevel : na, title='OS Line', color=color.rgb(0, 255, 0, 30), linestyle=hline.style_dashed)
+
+// Traditional AlertConditions
+// TSI crossing Signal Line
+isCrossAbove = tsiBearish[1] and tsiBullish
+isCrossBelow =  tsiBullish[1] and tsiBearish
+alertcondition(isCrossAbove and barstate.isconfirmed, title='TSI Cross Above Signal Line', message='TSI Crossed Above Signal line')
+alertcondition(isCrossBelow and barstate.isconfirmed, title='TSI Cross Below Signal Line', message='TSI Crossed Below Signal line')
+// TSI crossing OB and OS lines
+//
+// Even though the OB and OS lines are fixed-values, we will be forward-looking to the potential of adding dynamic OB/OS levels based on the MA
+// line and some as-yet-unknown scaling factor (similar to bollinger bands on a price chart).  To that end, we'll be consistent in our candle
+// references for all of the OB/OS comparisons for the crossover triggers so that we don't have to refactor them later should that enhancement
+// be made at some point in the future.
+//
+// While I could (and probably should) use the Pinescript 'crossover' and 'crossunder' built-in functions, it's generally better
+// to be consistent in how you code similar logic in a given script like this rather than playing with new toys (code/functions).
+// Since I manually calculated the TSI crossover/under, I'll just go ahead and do the same for the OB and OS crosses as I don't
+// feel like going back to refactor the TSI cross logic (developer's perogative in this case).
+//
+// TSI crossing OS line
+//    Note: We need to be mindful of the impact of negative numbers in comparisons for these...
+//    For example, -60 is less than -50, and -30 is greater than -40
+// Cross-above
+isCrossIntoOS = (tsi_value < osLevel and tsi_value[1] > osLevel[1]) ? true : false
+alertcondition(isCrossIntoOS and showOBOS and barstate.isconfirmed, title='TSI Crossed Into Over-sold', message='TSI Crossed Into Over-sold')
+// Cross-below
+isCrossOutOfOS = (tsi_value > osLevel and tsi_value[1] < osLevel[1]) ? true : false
+alertcondition(isCrossOutOfOS and showOBOS and barstate.isconfirmed, title='TSI Crossed Out Of Over-sold', message='TSI Crossed Out Of Over-sold')
+//
+// TSI crossing OB line
+// Cross-above
+isCrossIntoOB = (tsi_value > obLevel and tsi_value[1] < obLevel[1]) ? true : false
+alertcondition(isCrossIntoOB and showOBOS and barstate.isconfirmed, title='TSI Crossed Into Over-bought', message='TSI Crossed Into Over-bought')
+// Cross-below
+isCrossOutOfOB = (tsi_value < obLevel and tsi_value[1] > obLevel[1]) ? true : false
+alertcondition(isCrossIntoOB and showOBOS and barstate.isconfirmed, title='TSI Crossed Out Of Over-bought', message='TSI Crossed Out Of Over-bought')
+// TSI crossing MA line.  Even though it's possible for the floating MA value to be negative,
+// the relationship between the TSI and MA lines will always be consistent for these cases.
+// Cross Above
+isTSICrossAboveMA = (tsi_value > floatingMA and tsi_value[1] < floatingMA[1]) ? true : false
+alertcondition(isTSICrossAboveMA and showFloatingTSIMA and barstate.isconfirmed, title='TSI Crossed Above Moving Average', message='TSI Crossed Above Moving Average')
+// Cross Below
+isTSICrossBelowMA = (tsi_value < floatingMA and tsi_value[1] > floatingMA[1]) ? true : false
+alertcondition(isTSICrossBelowMA and showFloatingTSIMA and barstate.isconfirmed, title='TSI Crossed Below Moving Average', message='TSI Crossed Below Moving Average')
+
+if (useNewAlerts)
+    // Get date/time for use in alert...
+    // So there is unfortunately no way to resolve this to the user's display timezone, so nixing it to reduce confusion...
+    // var now = timenow
+    // var date = str.tostring(str.tostring(dayofmonth(now)) + '/' + str.tostring(month(now))  + '/' + str.tostring(year(now))  + ' - ' + str.tostring(hour(now))+ ':' + str.tostring(minute(now)) + ':' + str.tostring(second(now)))
+    //
+    // syminfo.tickerid works well for candlestick charts, but returns some odd additional data on other chart types like HA candles.  Therefore, we're going to explicitly construct
+    // the "standard" output format of "Exchange:Symbol" for use in the alerts
+    //
+    var sym = (syminfo.prefix + ':' + syminfo.ticker)
+    //
+    // Native alerts for TSI crossing signal line
+    if (isCrossBelow and doTSICrossingSignalAlert and barstate.isconfirmed)
+        var m = 'TSI Crossed Below Signal Line on ' + str.tostring(sym) + ', ' + timeframe.period + ' timeframe.  Check for additional confluences like being above the mid line (overbought).'
+        alert(str.tostring(m), alert.freq_once_per_bar_close)
+    if (isCrossAbove and doTSICrossingSignalAlert and barstate.isconfirmed)
+        var m = 'TSI Crossed Above Signal Line on ' + str.tostring(sym) + ', ' + timeframe.period + ' timeframe.  Check for additional confluences like being below the mid line (oversold).'
+        alert(str.tostring(m), alert.freq_once_per_bar_close)
+    //
+    // Native alerts for TSI crossing above then below the OS line
+    if (isCrossIntoOS and showOBOS and doTSICrossingOBOSAlert and barstate.isconfirmed)
+        var m = 'TSI Crossed Above (Into) Over-sold Line on ' + str.tostring(sym) + ', ' + timeframe.period + ' timeframe.  \n\n' +
+             'This may indicate possible over-extension prior to a consolidation or reversal.'
+        alert(str.tostring(m), alert.freq_once_per_bar_close)
+    if (isCrossOutOfOS and showOBOS and doTSICrossingOBOSAlert and barstate.isconfirmed)
+        var m = 'TSI Crossed Below (Out Of) Over-sold Line on ' + str.tostring(sym) + ', ' + timeframe.period + ' timeframe.  \n\n' +
+             'This may indicate price correction starting after being over-extended.'
+        alert(str.tostring(m), alert.freq_once_per_bar_close)
+    //
+    // Native alerts for TSI crossing above then below the OB line
+    if (isCrossIntoOB and showOBOS and doTSICrossingOBOSAlert and barstate.isconfirmed)
+        var m = 'TSI Crossed Above (Into) Over-bought Line on ' + str.tostring(sym) + ', ' + timeframe.period + ' timeframe.  \n\n' +
+             'This may indicate possible over-extension prior to a consolidation or reversal.'
+        alert(str.tostring(m), alert.freq_once_per_bar_close)
+    if (isCrossOutOfOB and showOBOS and doTSICrossingOBOSAlert and barstate.isconfirmed)
+        var m = 'TSI Crossed Below (Out Of) Over-bought Line on ' + str.tostring(sym) + ', ' + timeframe.period + ' timeframe.  \n\n' +
+             'This may indicate price correction starting after being over-extended.'
+        alert(str.tostring(m), alert.freq_once_per_bar_close)
+    //
+    // Native alerts for TSI crossing the TSI MA line
+    if (isTSICrossAboveMA and showFloatingTSIMA and doTSICrossingMAAlert and barstate.isconfirmed)
+        var m = 'TSI Crossed Above Floating MA Line on ' + str.tostring(sym) + ', ' + timeframe.period + ' timeframe.  \n\n' +
+             'This may indicate a shift in market momentum into a bullish bias.'
+        alert(str.tostring(m), alert.freq_once_per_bar_close)
+    if (isTSICrossBelowMA and showFloatingTSIMA and doTSICrossingMAAlert and barstate.isconfirmed)
+        var m = 'TSI Crossed Below Floating MA Line on ' + str.tostring(sym) + ', ' + timeframe.period + ' timeframe.  \n\n' +
+             'This may indicate a shift in market momentum into a bearish bias.'
+
+// Testing...
+//plotshape(series=(isCrossIntoOS and showOBOS and doTSICrossingOBOSAlert and barstate.isconfirmed) ? 1 : na, title="Test Alert Conditions", style=shape.diamond, size=size.tiny, color=color.rgb(255, 255, 0, 0), location=location.absolute)
+//plotshape(series=(isCrossOutOfOS and showOBOS and doTSICrossingOBOSAlert and barstate.isconfirmed) ? 1 : na, title="Test Alert Conditions 2", style=shape.diamond, size=size.tiny, color=color.rgb(255, 0, 255, 0), location=location.absolute)
