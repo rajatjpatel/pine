@@ -1,0 +1,15 @@
+//@version=5
+
+indicator(title='LiveTrend Support & Resistance', shorttitle='LSR', overlay=true,timeframe = '',timeframe_gaps=false)
+
+var float upper = high
+var float lower = low
+
+if low[2]>low[1] and  low>low[1]
+    lower := low[1]
+
+if high[2]<high[1] and  high<high[1]
+    upper := high[1]
+
+plot(upper,style=plot.style_cross,color=color.red,offset = -1)
+plot(lower,style=plot.style_cross,color=color.blue,offset = -1)
