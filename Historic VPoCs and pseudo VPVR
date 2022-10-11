@@ -1,0 +1,761 @@
+//@version=4
+study("Historic VPoCs and pseudo VPVR", "HVPoC_VPVR", overlay=true)
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+
+// Current version: v20201024
+
+// TradingView Public tags - BEGIN
+// Tag 1: Volume Profile
+// Tag 2: VPVR
+// Tag 3: tradinglatino
+// Tag 4: VPoC
+// TradingView Public tags - END
+
+// TradingView Public description - BEGIN
+//
+// This study tries to recreate session based historic VPoCs
+// and VPVR Volume Profile
+// as they are used by
+// TradingLatino TradingView user.
+// 
+// It's aimed at BTCUSDT pair and 4h timeframe.
+// 
+// [b]HOW IT WORKS[/b]
+// [b]HOW IT WORKS - VPVR Profile Block[/b]
+// It gathers volume from the last chosen Bars
+// in order to draw the vpvr profile block
+// 
+// Volume that intersects with current level range
+// being studied is added to its value.
+// 
+// Additionally the current level price is modified
+// so that it matches the level price where most
+// of the volume has concentrated
+// 
+// So you get a pretty accurate price for drawn volume
+// while at the same time the levels are not stuck
+// to arbitrary level prices.
+// 
+// [b]HOW IT WORKS - VPoC[/b]
+// It calculates a Volume Profile for the
+// given historic session but then
+// it only outputs that Volume Profile VPoC.
+// 
+// [b]SETTINGS[/b]
+// [list]
+// [*] Show VPVR Volume Profile {True}.
+// [*] Show Historic VPoC lines {True}.
+// [*] Show Historic VPoC labels {True}.
+// [*] Extend Historic VPoC lines {True}: If this option is turned off the VPoC lines are only shown during the session duration.
+// [*] Show tick difference from current price {False}: BETA. Feedback is needed because I'm not sure how it should work this setting.
+// [*] VPVR Number of bars {100}: Define the Visible Range in number of bars so that its Volume Profile can be shown.
+// [*] VPVR Profile width (in bars) {15}: VPVR Profile can be make larger or smaller in width thanks to this option.
+// [*] VPVR Profile offset (in bars) {15}: VPVR Profile can be shown more to the left or to the right if the defaults do not suit you.
+// [*] Historic Session Volume Profile timeframe {1D}: Historic VPoC use 1 day as their timeframe reference by default.
+// [*] Number of decimal digits {2}: How many decimal digits are shown in label prices.
+// [*] Number of previous sessions to print VPoC {5}: How many previous sessions VPoCs are to be printed. The maximum for this setting is 20.
+// [*] Historic VPoC lines width (in pixels) {2}.
+// [*] Historic VPoC labels size {small}.
+// [*] History VPoC line offset (in bars) {5}: How far to the right VPoCs lines are to be extended. Note: This setting does not apply when 'Extend Historic VPoC lines' is set to 'False'.
+// [/list]
+// 
+// [b]WARNING[/b]
+// Please be aware that VPoC from the first previous session might not be accurate due to Pine Script limitations.
+// 
+// [b]VPVR USAGE[/b]
+// 
+// This is not a VPVR like the official TradingView indicator.
+// This is a pseudo VPVR and that means it seems some manual input from you.
+// But, don't worry it's quite easy to do and if you always use the same number
+// of bars to calculate your VPVR then you might even just set it up once.
+// 
+// In order to show the VPVR (or Volume Profile on the Visible Range):
+// [list]
+// [*] Rescale your chart so that you see all the bars for your Visible Range.
+// [*] Click on the ruler tool.
+// [*] Click on the last bar (far to the right) shown on the screen
+// [*] Drag the ruler to first bar (far to the left) shown on the screen
+// [*] Check what the ruler says
+// [*] E.g. it says: 101 bars
+// [*] Open this study settings
+// [*] Modify: 'VPVR Number of bars [100]' setting
+// [*] So that its value matches your measured number of bars (101)
+// [*] Press OK to confirm and wait for the indicator to refresh.
+// [/list]
+// 
+// [b]STRATEGY USAGE[/b]
+// If your strategy uses VPoC
+// to define your resistances
+// or supports
+// you can check the VPoCs shown here.
+// 
+// [b]FEEDBACK[/b]
+// I have only used this identifier in BTCUSDT 4h timeframe.
+// I'm interested to know what needs to be tweaked
+// in other securities and timeframes.
+// 
+// [b]PINE STUDY TRICK[/b]
+// This study let's you choose the number of decimals the label will use.
+// 
+// [b]CREDITS[/b]
+// I have reused and adapted some code from
+// 'Poor man's volume profile' study
+// which it's from TradingView IldarAkhmetgaleev user.
+// 
+// I also wanted to thank him for helping me understanding his study.
+// 
+// I have reused some code from
+// 'MTF Selection Framework - PineCoders FAQ' study
+// which it's from TradingView PineCoders user.
+//
+// TradingView Public description - END
+
+// CREDITS - BEGIN
+
+// Volume levels
+// Name: Poor man's volume profile
+// User: IldarAkhmetgaleev
+//
+// See also https://github.com/akhilman/vol-poorofile
+
+// Timeframe to minutes
+// Name: MTF Selection Framework - PineCoders FAQ
+// User: PineCoders
+
+// CREDITS - END
+
+
+// TODO: Define the lines width in pixels
+
+enable_vpvr_profile = input(true, "Show VPVR Volume Profile {True}")
+enable_history_profile_lines = input(true, "Show Historic VPoC lines {True}")
+enable_history_profile_labels = input(true, "Show Historic VPoC labels {True}")
+enable_extend_historic_lines = input(true, "Extend Historic VPoC lines {True}")
+
+
+enable_show_ticks = input(false, "Show tick difference from current price {False}")
+vpvr_n_bars = input(100, "VPVR Number of bars {100}", minval=1, maxval=500)
+vpvr_profile_width = input(15, "VPVR Profile width (in bars) {15}", minval=10, maxval=50, step=1)
+vpvr_profile_offset = input(15, "VPVR Profile offset (in bars) {15}", minval=10, maxval=50, step=1)
+vp_session_timeframe = input("1D",title="Historic Session Volume Profile timeframe {1D}",type=input.resolution)
+resistances_price_decimal_digits = input(2, "Number of decimal digits {2}", minval=0, maxval=10, step=1)
+
+vpoc_sessions_number = input(5, "Number of previous sessions to print VPoC {5}", minval=1, maxval=20)
+vpoc_line_witdh = input(2, "Historic VPoC lines width (in pixels) {2}", minval=1, maxval=50, step=1)
+vpoc_label_size = input(size.small,  "Historic VPoC labels size {small}", options=[size.auto, size.tiny, size.small, size.normal, size.large, size.huge])
+vpoc_line_offset = input(5, "History VPoC line offset (in bars) {5}", minval=1, maxval=50, step=1)
+
+// VP_PRICE_LEVELS = input(20, "Price levels {20}", minval=20, maxval=100)
+VP_PRICE_LEVELS = 20
+
+
+LAST_BLOCK_COLOR = color.gray
+CURRENT_PRICE_LEVEL_COLOR = color.blue
+SUPPORT_PRICE_LEVEL_COLOR = color.green
+RESISTANCE_PRICE_LEVEL_COLOR = color.red
+VPOC_PRICE_LEVEL_COLOR = color.white
+
+vpoc_sessions_number_printed = 0
+
+// —————————— PineCoders MTF Selection Framework functions
+// ————— Converts current "timeframe.multiplier" plus the TF into minutes of type float.
+f_resInMinutes() => 
+    _resInMinutes = timeframe.multiplier * (
+      timeframe.isseconds ? 1. / 60. :
+      timeframe.isminutes ? 1.       :
+      timeframe.isdaily   ? 1440.    :
+      timeframe.isweekly  ? 10080.   :
+      timeframe.ismonthly ? 43800.   : na)
+
+get_resolution_bar_minutes(resolution) =>
+    minutes = resolution == '1' ? (1 * 1) : 
+     resolution == '3' ? (3 * 1) :
+     resolution == '5' ? (5 * 1) : 
+     resolution == '15' ? (15 * 1) : 
+     resolution == '30' ? (30 * 1) : 
+     resolution == '45' ? (45 * 1) : 
+     resolution == '60' ? (60 * 1) : 
+     resolution == '120' ? (2 * 60) : 
+     resolution == '180' ? (3 * 60) : 
+     resolution == '240' ? (4 * 60) : 
+     resolution == '1D' ? (24 * 60) :
+     resolution == '1W' ? (7 * 24 * 60) :
+     f_resInMinutes() // Equal to current symbol
+    minutes
+
+session_n_bars = int(floor(get_resolution_bar_minutes(vp_session_timeframe) / f_resInMinutes()))
+
+row_width_multiplier = session_n_bars
+
+////
+// Utils
+///
+
+get_resistances_price_decimal_digits_zero_string () =>
+    zero_string = ""
+    if not (resistances_price_decimal_digits == 0)
+        for digit = 1 to resistances_price_decimal_digits
+            zero_string := zero_string + "0"
+    zero_string
+
+level_value(from_i, to_i, row_low, row_high) =>
+    float actual_low = na
+    float actual_high = na
+    val = 0.0
+    for i = from_i to to_i
+        if low[i] < row_high and high[i] > row_low
+            if low[i] > row_low
+                actual_low := low[i]
+            else
+                actual_low := row_low // Should not happen
+
+            if high[i] < row_high
+                actual_high := high[i]
+            else
+                actual_high := row_high
+
+            val := val + volume[i] * (max(actual_high - actual_low, 1) / max((row_high - row_low) * VP_PRICE_LEVELS, 1) )
+    val
+
+level_price(from_i, to_i, row_low, row_high) =>
+    float actual_low = na
+    float actual_high = na
+    float volume_ponderated = 0.0
+    float price_ponderated = 0.0
+    float total_volume = 0.0
+    float price_ponderated_top_sum = 0.0
+    float return_price = 0.0
+
+    for i = from_i to to_i
+        actual_high := row_high // Default value for the loop
+        actual_low := row_low // Default values for the loop
+        volume_ponderated := 0.0 // Default value for the loop
+        if low[i] < row_high and high[i] > row_low
+            if low[i] > row_low
+                actual_low := low[i]
+            else
+                actual_low := row_low // Should not happen
+
+            if high[i] < row_high
+                actual_high := high[i]
+            else
+                actual_high := row_high
+
+            volume_ponderated := volume[i] * (max(actual_high - actual_low, 1) / max((row_high - row_low) * VP_PRICE_LEVELS, 1))
+
+            total_volume := total_volume + volume_ponderated
+            price_ponderated := ((actual_high + actual_low) / 2)
+            price_ponderated_top_sum := price_ponderated_top_sum + (price_ponderated * volume_ponderated)
+            
+    if (total_volume != 0)
+        return_price := price_ponderated_top_sum / total_volume
+    else
+        return_price := ((row_low + row_high ) / 2)
+
+    return_price
+
+level_value_wrapper(profile_lvl_height, profile_low, level_number, from_i, to_i, n_bars) =>
+    profile_lvl_low = profile_low + profile_lvl_height * (0 + level_number)
+    profile_lvl_high = profile_low + profile_lvl_height * (1 + level_number)
+    profile_lvl_value = level_value(0, n_bars, profile_lvl_low, profile_lvl_high)
+    profile_lvl_value
+
+level_price_wrapper(profile_lvl_height, profile_low, level_number, n_bars) =>
+    profile_lvl_low = profile_low + profile_lvl_height * (0 + level_number)
+    profile_lvl_high = profile_low + profile_lvl_height * (1 + level_number)
+    
+    profile_lvl_price = level_price(0, n_bars, profile_lvl_low, profile_lvl_high)
+    tick_based_lvl_price = 0.0
+    if (enable_show_ticks and (syminfo.mintick > 0))
+        tick_based_lvl_price := floor(profile_lvl_price / syminfo.mintick) * syminfo.mintick
+    else 
+        tick_based_lvl_price := profile_lvl_price
+    
+    tick_based_lvl_price
+
+level_width(profile_highest_lvl_value, profile_lvl_height, profile_low, level_number, n_bars) =>
+    profile_lvl_low = profile_low + profile_lvl_height * (0 + level_number)
+    profile_lvl_high = profile_low + profile_lvl_height * (1 + level_number)
+    profile_lvl_value = level_value(0, n_bars, profile_lvl_low, profile_lvl_high)
+    profile_lvl_width = row_width_multiplier * profile_lvl_value / profile_highest_lvl_value
+    
+    profile_lvl_width
+
+draw_vpvr_lvl_line(highest_profile_lvl_width, profile_lvl_price, profile_lvl_width, level_number, enabled, vpoc_price_level_number) =>
+    dt = time - time[1]
+    var line profile_lvl_line = na
+    var string line_style = line.style_solid
+    var bool line_extend = false // We don't use line extend property because it goes too far to the right
+    color level_colour = LAST_BLOCK_COLOR
+    float profile_lvl_width_float = profile_lvl_width
+    float highest_profile_lvl_width_float = highest_profile_lvl_width
+    float width_proportion = (profile_lvl_width_float/highest_profile_lvl_width_float)
+
+    if barstate.islast and enabled
+        if (level_number == vpoc_price_level_number)
+            level_colour := VPOC_PRICE_LEVEL_COLOR
+        else
+            level_colour := LAST_BLOCK_COLOR
+        0
+        profile_lvl_line := line.new(bar_index, close, bar_index, close, width=3, xloc = xloc.bar_time, color=level_colour, style=line_style)
+
+        line.set_x1(profile_lvl_line, floor(time + dt + vpvr_profile_offset*dt + vpvr_profile_width*dt - ((width_proportion)*(vpvr_profile_width*dt))) )
+        line.set_x2(profile_lvl_line, floor(time + dt + vpvr_profile_offset*dt + vpvr_profile_width*dt))
+
+        line.set_y1(profile_lvl_line, profile_lvl_price)
+        line.set_y2(profile_lvl_line, profile_lvl_price)
+    if barstate.islast and not enabled
+        if not na(profile_lvl_line)
+            line.delete(profile_lvl_line)
+            profile_lvl_line := na
+    profile_lvl_line
+
+draw_historic_lvl_line(price,history_start) =>
+    // Default values
+    var style = line.style_dotted
+    var pcolor = VPOC_PRICE_LEVEL_COLOR
+    var xloc = xloc.bar_time
+    var width = vpoc_line_witdh
+    var int x1 = floor(time + vpoc_line_offset *(time - time[1]))
+    var int x2 = floor(time - ((history_start) * (time - time[1])) )
+    
+    if (not enable_extend_historic_lines)
+        x1 := floor(time + ( - history_start + session_n_bars) * (time - time[1]))
+    
+    var line history_vpoc_line = na
+    
+    if ((vpoc_sessions_number_printed < vpoc_sessions_number) and (enable_history_profile_lines))
+        history_vpoc_line := line.new(x1=x1, y1=price, x2=x2, y2=price, width=width, xloc=xloc, color=pcolor, style=style)
+    else
+        history_vpoc_line := na
+    history_vpoc_line
+
+draw_label(highest_profile_lvl_width, profile_lvl_price, profile_lvl_height, profile_low) =>
+    dt = time - time[1]
+    var label profile_lvl_label = na
+    var float level_special_price = na
+    if barstate.islast and enable_vpvr_profile
+        level_colour = VPOC_PRICE_LEVEL_COLOR
+        price_tick_difference_str = ""
+        if (enable_show_ticks and (syminfo.mintick > 0))
+            price_tick_difference_str :=  " ; " + tostring(((profile_lvl_price) * syminfo.pointvalue), "#." + get_resistances_price_decimal_digits_zero_string()) + " $" 
+        else 
+            price_tick_difference_str := ""
+        level_special_price := profile_lvl_price
+        profile_lvl_label := label.new(bar_index, close, xloc = xloc.bar_time, color=level_colour, text=tostring(profile_lvl_price, "#." + get_resistances_price_decimal_digits_zero_string()) + price_tick_difference_str, tooltip="VPVR Volume Point Of Control (VPoc)", style=label.style_label_left)
+        label.set_x(profile_lvl_label, floor(time + dt + vpvr_profile_offset*dt + vpvr_profile_width*dt))
+        label.set_y(profile_lvl_label, level_special_price)
+    if barstate.islast and not enable_vpvr_profile
+        if not na(profile_lvl_label)
+            label.delete(profile_lvl_label)
+            profile_lvl_label := na
+    profile_lvl_label
+
+draw_historic_lvl_label(price, level_number) =>
+    var int position = floor(time + vpoc_line_offset * (time - time[1]))
+    var string price_string = tostring(price, "#." + get_resistances_price_decimal_digits_zero_string())
+    var th_string = (level_number == 1) ? "st" :
+     (level_number == 2) ? "nd" :
+     (level_number == 3) ? "rd" :
+     "th"
+
+    var label history_vpoc_label = na
+
+    if ((vpoc_sessions_number_printed < vpoc_sessions_number) and (enable_history_profile_labels))
+        history_vpoc_label := label.new(position, price, xloc = xloc.bar_time, color=VPOC_PRICE_LEVEL_COLOR, text=price_string, tooltip="VPoC from previous " + tostring(level_number) + "-" + th_string + " session (" + vp_session_timeframe+")" + " : " + price_string , style=label.style_label_left, size=vpoc_label_size)
+    else
+        history_vpoc_label := na
+    history_vpoc_label
+
+get_tick_difference (profile_support_price, profile_current_price) =>
+    price_difference = profile_support_price - profile_current_price
+    tick_based_price_difference = 0.0
+    if (enable_show_ticks and (syminfo.mintick > 0))
+        tick_based_price_difference :=  floor((profile_support_price - profile_current_price) / syminfo.mintick)
+    else 
+        tick_based_price_difference := price_difference
+    tick_based_price_difference
+
+
+
+
+////
+// Calculate vpvr profile
+///
+
+var line vpvr_lvl0_line = na
+var line vpvr_lvl1_line = na
+var line vpvr_lvl2_line = na
+var line vpvr_lvl3_line = na
+var line vpvr_lvl4_line = na
+var line vpvr_lvl5_line = na
+var line vpvr_lvl6_line = na
+var line vpvr_lvl7_line = na
+var line vpvr_lvl8_line = na
+var line vpvr_lvl9_line = na
+var line vpvr_lvl10_line = na
+var line vpvr_lvl11_line = na
+var line vpvr_lvl12_line = na
+var line vpvr_lvl13_line = na
+var line vpvr_lvl14_line = na
+var line vpvr_lvl15_line = na
+var line vpvr_lvl16_line = na
+var line vpvr_lvl17_line = na
+var line vpvr_lvl18_line = na
+var line vpvr_lvl19_line = na
+
+var label vpvr_vpoc_price_label = na
+
+var label history_vpoc1_label = na
+var label history_vpoc2_label = na
+var label history_vpoc3_label = na
+var label history_vpoc4_label = na
+var label history_vpoc5_label = na
+var label history_vpoc6_label = na
+var label history_vpoc7_label = na
+var label history_vpoc8_label = na
+var label history_vpoc9_label = na
+var label history_vpoc10_label = na
+var label history_vpoc11_label = na
+var label history_vpoc12_label = na
+var label history_vpoc13_label = na
+var label history_vpoc14_label = na
+var label history_vpoc15_label = na
+var label history_vpoc16_label = na
+var label history_vpoc17_label = na
+var label history_vpoc18_label = na
+var label history_vpoc19_label = na
+var label history_vpoc20_label = na
+
+var line history_vpoc1_line = na
+var line history_vpoc2_line = na
+var line history_vpoc3_line = na
+var line history_vpoc4_line = na
+var line history_vpoc5_line = na
+var line history_vpoc6_line = na
+var line history_vpoc7_line = na
+var line history_vpoc8_line = na
+var line history_vpoc9_line = na
+var line history_vpoc10_line = na
+var line history_vpoc11_line = na
+var line history_vpoc12_line = na
+var line history_vpoc13_line = na
+var line history_vpoc14_line = na
+var line history_vpoc15_line = na
+var line history_vpoc16_line = na
+var line history_vpoc17_line = na
+var line history_vpoc18_line = na
+var line history_vpoc19_line = na
+var line history_vpoc20_line = na
+
+
+
+
+
+
+volume_profile_pre_calculation (phigh, plow, n_bars) =>
+    float profile_lvl_price_tmp = na
+    float previous_profile_lvl_value_tmp = na
+    float profile_lvl_width_tmp = na
+    float profile_lvl_value_tmp = na
+    float highest_profile_lvl_value = na
+
+    float lprofile_high = na
+    float lprofile_low = na
+    float lhighest_profile_lvl_width = 0.0
+    float lprofile_highest_lvl_value = na
+    int lvpoc_price_level_number = 0
+    float profile_lvl_height = na
+
+    // Highest and lowest functions
+    // need to be executed always
+    // and not only at last bar
+    lprofile_high := highest(phigh, n_bars)
+    lprofile_low := lowest(plow, n_bars)
+    if barstate.islast
+
+        profile_lvl_height := (lprofile_high - lprofile_low) / VP_PRICE_LEVELS
+        current_price = (open + close) / 2
+
+        // Value
+        for level_number = 0 to (VP_PRICE_LEVELS - 1)
+            profile_lvl_value_tmp := level_value_wrapper(profile_lvl_height, lprofile_low, level_number, 0, n_bars, n_bars)
+            lprofile_highest_lvl_value := max(nz(lprofile_highest_lvl_value), profile_lvl_value_tmp)
+            if nz(highest_profile_lvl_value) < lprofile_highest_lvl_value
+                highest_profile_lvl_value := lprofile_highest_lvl_value
+                lvpoc_price_level_number := level_number
+                
+
+        // Width
+        for level_number = 0 to (VP_PRICE_LEVELS - 1)
+            profile_lvl_width_tmp := level_width(lprofile_highest_lvl_value, profile_lvl_height, lprofile_low, level_number, n_bars)
+            if nz(lhighest_profile_lvl_width) < profile_lvl_width_tmp
+                lhighest_profile_lvl_width := profile_lvl_width_tmp
+
+
+
+
+    [lprofile_high, lprofile_low, profile_lvl_height, lhighest_profile_lvl_width, lprofile_highest_lvl_value, lvpoc_price_level_number]
+
+// Precalculate VPVR Volume Profile
+[vpvr_high, vpvr_low, vpvr_lvl_height, highest_vpvr_lvl_width, vpvr_highest_lvl_value, vpoc_price_level_number] = volume_profile_pre_calculation (high, low, vpvr_n_bars)
+
+day_bar_index = security(syminfo.tickerid, vp_session_timeframe, bar_index)
+
+get_day_change(number_of_days, day_bar_index) =>
+    lnumber_of_days = number_of_days
+    int return_bar = na
+    for bar = 1 to 1000
+        if ((day_bar_index[bar - 1]) != (day_bar_index[bar]))
+            lnumber_of_days := lnumber_of_days - 1
+            if (lnumber_of_days == 0)
+                return_bar := bar
+                break
+    (return_bar - 1)
+
+
+// Precalculate History1 Volume Profile    
+history1_start = get_day_change(1, day_bar_index)
+history2_start = get_day_change(2, day_bar_index)
+history3_start = get_day_change(3, day_bar_index)
+history4_start = get_day_change(4, day_bar_index)
+history5_start = get_day_change(5, day_bar_index)
+history6_start = get_day_change(6, day_bar_index)
+history7_start = get_day_change(7, day_bar_index)
+history8_start = get_day_change(8, day_bar_index)
+history9_start = get_day_change(9, day_bar_index)
+history10_start = get_day_change(10, day_bar_index)
+history11_start = get_day_change(11, day_bar_index)
+history12_start = get_day_change(12, day_bar_index)
+history13_start = get_day_change(13, day_bar_index)
+history14_start = get_day_change(14, day_bar_index)
+history15_start = get_day_change(15, day_bar_index)
+history16_start = get_day_change(16, day_bar_index)
+history17_start = get_day_change(17, day_bar_index)
+history18_start = get_day_change(18, day_bar_index)
+history19_start = get_day_change(19, day_bar_index)
+history20_start = get_day_change(20, day_bar_index)
+
+[history1_high, history1_low, history1_lvl_height, highest_history1_lvl_width, history1_highest_lvl_value, history1_vpoc_price_level_number] = volume_profile_pre_calculation (high[history1_start], low[history1_start], session_n_bars)
+[history2_high, history2_low, history2_lvl_height, highest_history2_lvl_width, history2_highest_lvl_value, history2_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(2, day_bar_index)], low[get_day_change(2, day_bar_index)], session_n_bars)
+[history3_high, history3_low, history3_lvl_height, highest_history3_lvl_width, history3_highest_lvl_value, history3_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(3, day_bar_index)], low[get_day_change(3, day_bar_index)], session_n_bars)
+[history4_high, history4_low, history4_lvl_height, highest_history4_lvl_width, history4_highest_lvl_value, history4_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(4, day_bar_index)], low[get_day_change(4, day_bar_index)], session_n_bars)
+[history5_high, history5_low, history5_lvl_height, highest_history5_lvl_width, history5_highest_lvl_value, history5_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(5, day_bar_index)], low[get_day_change(5, day_bar_index)], session_n_bars)
+[history6_high, history6_low, history6_lvl_height, highest_history6_lvl_width, history6_highest_lvl_value, history6_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(6, day_bar_index)], low[get_day_change(6, day_bar_index)], session_n_bars)
+[history7_high, history7_low, history7_lvl_height, highest_history7_lvl_width, history7_highest_lvl_value, history7_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(7, day_bar_index)], low[get_day_change(7, day_bar_index)], session_n_bars)
+[history8_high, history8_low, history8_lvl_height, highest_history8_lvl_width, history8_highest_lvl_value, history8_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(8, day_bar_index)], low[get_day_change(8, day_bar_index)], session_n_bars)
+[history9_high, history9_low, history9_lvl_height, highest_history9_lvl_width, history9_highest_lvl_value, history9_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(9, day_bar_index)], low[get_day_change(9, day_bar_index)], session_n_bars)
+[history10_high, history10_low, history10_lvl_height, highest_history10_lvl_width, history10_highest_lvl_value, history10_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(10, day_bar_index)], low[get_day_change(10, day_bar_index)], session_n_bars)
+[history11_high, history11_low, history11_lvl_height, highest_history11_lvl_width, history11_highest_lvl_value, history11_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(11, day_bar_index)], low[get_day_change(11, day_bar_index)], session_n_bars)
+[history12_high, history12_low, history12_lvl_height, highest_history12_lvl_width, history12_highest_lvl_value, history12_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(12, day_bar_index)], low[get_day_change(12, day_bar_index)], session_n_bars)
+[history13_high, history13_low, history13_lvl_height, highest_history13_lvl_width, history13_highest_lvl_value, history13_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(13, day_bar_index)], low[get_day_change(13, day_bar_index)], session_n_bars)
+[history14_high, history14_low, history14_lvl_height, highest_history14_lvl_width, history14_highest_lvl_value, history14_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(14, day_bar_index)], low[get_day_change(14, day_bar_index)], session_n_bars)
+[history15_high, history15_low, history15_lvl_height, highest_history15_lvl_width, history15_highest_lvl_value, history15_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(15, day_bar_index)], low[get_day_change(15, day_bar_index)], session_n_bars)
+[history16_high, history16_low, history16_lvl_height, highest_history16_lvl_width, history16_highest_lvl_value, history16_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(16, day_bar_index)], low[get_day_change(16, day_bar_index)], session_n_bars)
+[history17_high, history17_low, history17_lvl_height, highest_history17_lvl_width, history17_highest_lvl_value, history17_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(17, day_bar_index)], low[get_day_change(17, day_bar_index)], session_n_bars)
+[history18_high, history18_low, history18_lvl_height, highest_history18_lvl_width, history18_highest_lvl_value, history18_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(18, day_bar_index)], low[get_day_change(18, day_bar_index)], session_n_bars)
+[history19_high, history19_low, history19_lvl_height, highest_history19_lvl_width, history19_highest_lvl_value, history19_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(19, day_bar_index)], low[get_day_change(19, day_bar_index)], session_n_bars)
+[history20_high, history20_low, history20_lvl_height, highest_history20_lvl_width, history20_highest_lvl_value, history20_vpoc_price_level_number] = volume_profile_pre_calculation (high[get_day_change(20, day_bar_index)], low[get_day_change(20, day_bar_index)], session_n_bars)
+
+
+////
+// Draw vpvr block and historic vpocs
+///
+if (barstate.islast)
+
+    
+    line.delete(vpvr_lvl0_line)
+    line.delete(vpvr_lvl1_line)
+    line.delete(vpvr_lvl2_line)
+    line.delete(vpvr_lvl3_line)
+    line.delete(vpvr_lvl4_line)
+    line.delete(vpvr_lvl5_line)
+    line.delete(vpvr_lvl6_line)
+    line.delete(vpvr_lvl7_line)
+    line.delete(vpvr_lvl8_line)
+    line.delete(vpvr_lvl9_line)
+    line.delete(vpvr_lvl10_line)
+    line.delete(vpvr_lvl11_line)
+    line.delete(vpvr_lvl12_line)
+    line.delete(vpvr_lvl13_line)
+    line.delete(vpvr_lvl14_line)
+    line.delete(vpvr_lvl15_line)
+    line.delete(vpvr_lvl16_line)
+    line.delete(vpvr_lvl17_line)
+    line.delete(vpvr_lvl18_line)
+    line.delete(vpvr_lvl19_line)
+
+    label.delete(vpvr_vpoc_price_label)
+    
+    line.delete(history_vpoc1_line)
+    line.delete(history_vpoc2_line)
+    line.delete(history_vpoc3_line)
+    line.delete(history_vpoc4_line)
+    line.delete(history_vpoc5_line)
+    line.delete(history_vpoc6_line)
+    line.delete(history_vpoc7_line)
+    line.delete(history_vpoc8_line)
+    line.delete(history_vpoc9_line)
+    line.delete(history_vpoc10_line)
+    line.delete(history_vpoc11_line)
+    line.delete(history_vpoc12_line)
+    line.delete(history_vpoc13_line)
+    line.delete(history_vpoc14_line)
+    line.delete(history_vpoc15_line)
+    line.delete(history_vpoc16_line)
+    line.delete(history_vpoc17_line)
+    line.delete(history_vpoc18_line)
+    line.delete(history_vpoc19_line)
+    line.delete(history_vpoc20_line)
+
+    label.delete(history_vpoc1_label)
+    label.delete(history_vpoc2_label)
+    label.delete(history_vpoc3_label)
+    label.delete(history_vpoc4_label)
+    label.delete(history_vpoc5_label)
+    label.delete(history_vpoc6_label)
+    label.delete(history_vpoc7_label)
+    label.delete(history_vpoc8_label)
+    label.delete(history_vpoc9_label)
+    label.delete(history_vpoc10_label)
+    label.delete(history_vpoc11_label)
+    label.delete(history_vpoc12_label)
+    label.delete(history_vpoc13_label)
+    label.delete(history_vpoc14_label)
+    label.delete(history_vpoc15_label)
+    label.delete(history_vpoc16_label)
+    label.delete(history_vpoc17_label)
+    label.delete(history_vpoc18_label)
+    label.delete(history_vpoc19_label)
+    label.delete(history_vpoc20_label)
+
+
+    vpvr_lvl0_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 0, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 0, vpvr_n_bars)), 0, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl1_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 1, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 1, vpvr_n_bars)), 1, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl2_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 2, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 2, vpvr_n_bars)), 2, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl3_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 3, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 3, vpvr_n_bars)), 3, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl4_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 4, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 4, vpvr_n_bars)), 4, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl5_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 5, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 5, vpvr_n_bars)), 5, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl6_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 6, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 6, vpvr_n_bars)), 6, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl7_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 7, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 7, vpvr_n_bars)), 7, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl8_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 8, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 8, vpvr_n_bars)), 8, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl9_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 9, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 9, vpvr_n_bars)), 9, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl10_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 10, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 10, vpvr_n_bars)), 10, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl11_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 11, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 11, vpvr_n_bars)), 11, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl12_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 12, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 12, vpvr_n_bars)), 12, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl13_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 13, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 13, vpvr_n_bars)), 13, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl14_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 14, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 14, vpvr_n_bars)), 14, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl15_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 15, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 15, vpvr_n_bars)), 15, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl16_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 16, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 16, vpvr_n_bars)), 16, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl17_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 17, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 17, vpvr_n_bars)), 17, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl18_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 18, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 18, vpvr_n_bars)), 18, enable_vpvr_profile, vpoc_price_level_number)
+    vpvr_lvl19_line := draw_vpvr_lvl_line(highest_vpvr_lvl_width, (level_price_wrapper(vpvr_lvl_height, vpvr_low, 19, vpvr_n_bars)), (level_width(vpvr_highest_lvl_value, vpvr_lvl_height, vpvr_low, 19, vpvr_n_bars)), 19, enable_vpvr_profile, vpoc_price_level_number)
+
+    vpvr_vpoc_price = (level_price_wrapper(vpvr_lvl_height, vpvr_low, vpoc_price_level_number, vpvr_n_bars))
+    vpvr_vpoc_price_label := draw_label(highest_vpvr_lvl_width, vpvr_vpoc_price, vpvr_lvl_height, vpvr_low)
+
+
+    vpoc_sessions_number_printed := 0
+
+    history_vpoc1_price = level_price_wrapper(history1_lvl_height, history1_low, history1_vpoc_price_level_number, session_n_bars)
+    history_vpoc1_line := draw_historic_lvl_line(history_vpoc1_price, history1_start)
+    history_vpoc1_label := draw_historic_lvl_label(history_vpoc1_price,1)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc2_price = level_price_wrapper(history2_lvl_height, history2_low, history2_vpoc_price_level_number, session_n_bars)
+    history_vpoc2_line := draw_historic_lvl_line(history_vpoc2_price, history2_start)
+    history_vpoc2_label := draw_historic_lvl_label(history_vpoc2_price,2)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc3_price = level_price_wrapper(history3_lvl_height, history3_low, history3_vpoc_price_level_number, session_n_bars)
+    history_vpoc3_line := draw_historic_lvl_line(history_vpoc3_price, history3_start)
+    history_vpoc3_label := draw_historic_lvl_label(history_vpoc3_price,3)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc4_price = level_price_wrapper(history4_lvl_height, history4_low, history4_vpoc_price_level_number, session_n_bars)
+    history_vpoc4_line := draw_historic_lvl_line(history_vpoc4_price, history4_start)
+    history_vpoc4_label := draw_historic_lvl_label(history_vpoc4_price,4)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc5_price = level_price_wrapper(history5_lvl_height, history5_low, history5_vpoc_price_level_number, session_n_bars)
+    history_vpoc5_line := draw_historic_lvl_line(history_vpoc5_price, history5_start)
+    history_vpoc5_label := draw_historic_lvl_label(history_vpoc5_price,5)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc6_price = level_price_wrapper(history6_lvl_height, history6_low, history6_vpoc_price_level_number, session_n_bars)
+    history_vpoc6_line := draw_historic_lvl_line(history_vpoc6_price, history6_start)
+    history_vpoc6_label := draw_historic_lvl_label(history_vpoc6_price,6)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc7_price = level_price_wrapper(history7_lvl_height, history7_low, history7_vpoc_price_level_number, session_n_bars)
+    history_vpoc7_line := draw_historic_lvl_line(history_vpoc7_price, history7_start)
+    history_vpoc7_label := draw_historic_lvl_label(history_vpoc7_price,7)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc8_price = level_price_wrapper(history8_lvl_height, history8_low, history8_vpoc_price_level_number, session_n_bars)
+    history_vpoc8_line := draw_historic_lvl_line(history_vpoc8_price, history8_start)
+    history_vpoc8_label := draw_historic_lvl_label(history_vpoc8_price,8)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc9_price = level_price_wrapper(history9_lvl_height, history9_low, history9_vpoc_price_level_number, session_n_bars)
+    history_vpoc9_line := draw_historic_lvl_line(history_vpoc9_price, history9_start)
+    history_vpoc9_label := draw_historic_lvl_label(history_vpoc9_price,9)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc10_price = level_price_wrapper(history10_lvl_height, history10_low, history10_vpoc_price_level_number, session_n_bars)
+    history_vpoc10_line := draw_historic_lvl_line(history_vpoc10_price, history10_start)
+    history_vpoc10_label := draw_historic_lvl_label(history_vpoc10_price,10)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc11_price = level_price_wrapper(history11_lvl_height, history11_low, history11_vpoc_price_level_number, session_n_bars)
+    history_vpoc11_line := draw_historic_lvl_line(history_vpoc11_price, history11_start)
+    history_vpoc11_label := draw_historic_lvl_label(history_vpoc11_price,11)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc12_price = level_price_wrapper(history12_lvl_height, history12_low, history12_vpoc_price_level_number, session_n_bars)
+    history_vpoc12_line := draw_historic_lvl_line(history_vpoc12_price, history12_start)
+    history_vpoc12_label := draw_historic_lvl_label(history_vpoc12_price,12)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc13_price = level_price_wrapper(history13_lvl_height, history13_low, history13_vpoc_price_level_number, session_n_bars)
+    history_vpoc13_line := draw_historic_lvl_line(history_vpoc13_price, history13_start)
+    history_vpoc13_label := draw_historic_lvl_label(history_vpoc13_price,13)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc14_price = level_price_wrapper(history14_lvl_height, history14_low, history14_vpoc_price_level_number, session_n_bars)
+    history_vpoc14_line := draw_historic_lvl_line(history_vpoc14_price, history14_start)
+    history_vpoc14_label := draw_historic_lvl_label(history_vpoc14_price,14)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc15_price = level_price_wrapper(history15_lvl_height, history15_low, history15_vpoc_price_level_number, session_n_bars)
+    history_vpoc15_line := draw_historic_lvl_line(history_vpoc15_price, history15_start)
+    history_vpoc15_label := draw_historic_lvl_label(history_vpoc15_price,15)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc16_price = level_price_wrapper(history16_lvl_height, history16_low, history16_vpoc_price_level_number, session_n_bars)
+    history_vpoc16_line := draw_historic_lvl_line(history_vpoc16_price, history16_start)
+    history_vpoc16_label := draw_historic_lvl_label(history_vpoc16_price,16)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc17_price = level_price_wrapper(history17_lvl_height, history17_low, history17_vpoc_price_level_number, session_n_bars)
+    history_vpoc17_line := draw_historic_lvl_line(history_vpoc17_price, history17_start)
+    history_vpoc17_label := draw_historic_lvl_label(history_vpoc17_price,17)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc18_price = level_price_wrapper(history18_lvl_height, history18_low, history18_vpoc_price_level_number, session_n_bars)
+    history_vpoc18_line := draw_historic_lvl_line(history_vpoc18_price, history18_start)
+    history_vpoc18_label := draw_historic_lvl_label(history_vpoc18_price,18)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc19_price = level_price_wrapper(history19_lvl_height, history19_low, history19_vpoc_price_level_number, session_n_bars)
+    history_vpoc19_line := draw_historic_lvl_line(history_vpoc19_price, history19_start)
+    history_vpoc19_label := draw_historic_lvl_label(history_vpoc19_price,19)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    history_vpoc20_price = level_price_wrapper(history20_lvl_height, history20_low, history20_vpoc_price_level_number, session_n_bars)
+    history_vpoc20_line := draw_historic_lvl_line(history_vpoc20_price, history20_start)
+    history_vpoc20_label := draw_historic_lvl_label(history_vpoc20_price,20)
+    vpoc_sessions_number_printed := vpoc_sessions_number_printed + 1
+
+    
