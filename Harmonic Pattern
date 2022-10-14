@@ -1,0 +1,1374 @@
+//@version=5
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © shoonyatrade
+//@version=5
+
+indicator("Harmonic Pattern Detection, Prediction, and Backtesting System","Harmonics",overlay=true,max_lines_count=500,max_labels_count=500,max_bars_back=500)
+
+import reees/TA/18 as t
+import reees/Algebra/4 as alg
+import reees/Fibonacci/1 as fib
+//import reees/Trig/2 as trig
+//import reees/Utilities/2 as u
+
+//----------------------------------------- 
+// inputs and vars 
+//-----------------------------------------
+
+// Pattern Type Inputs
+var bullOn = input.bool(true, "Bullish", inline="type_b", group="Types")
+var bearOn = input.bool(true, "Bearish", inline="type_b", group="Types")
+var gartOn = input.bool(true, "Gartley: ", inline="gart", group="Types")
+var gart_t1 = input.string(".618 XA", "Target 1", inline="gart", group="Types", options=[".618 XA","1.272 XA","1.618 XA",".618 CD","1.272 CD","1.618 CD","A","B","C"])
+var gart_t2 = input.string("1.272 XA", "Target 2", inline="gart", group="Types", options=[".618 XA","1.272 XA","1.618 XA",".618 CD","1.272 CD","1.618 CD","A","B","C"])
+var batOn = input.bool(true, "Bat: ", inline="bat", group="Types")
+var bat_t1 = input.string("B", "Target 1", inline="bat", group="Types", options=[".618 XA","1.272 XA","1.618 XA",".618 CD","1.272 CD","1.618 CD","A","B","C"])
+var bat_t2 = input.string("C", "Target 2", inline="bat", group="Types", options=[".618 XA","1.272 XA","1.618 XA",".618 CD","1.272 CD","1.618 CD","A","B","C"])
+var bflyOn = input.bool(true, "Butterfly: ", inline="bfly", group="Types")
+var bfly_t1 = input.string("C", "Target 1", inline="bfly", group="Types", options=[".618 XA","1.272 XA","1.618 XA",".618 CD","1.272 CD","1.618 CD","A","B","C"])
+var bfly_t2 = input.string("1.618 CD", "Target 2", inline="bfly", group="Types", options=[".618 XA","1.272 XA","1.618 XA",".618 CD","1.272 CD","1.618 CD","A","B","C"])
+var crabOn = input.bool(true, "Crab: ", inline="crab", group="Types")
+var crab_t1 = input.string("B", "Target 1", inline="crab", group="Types", options=[".618 XA","1.272 XA","1.618 XA",".618 CD","1.272 CD","1.618 CD","A","B","C"])
+var crab_t2 = input.string("C", "Target 2", inline="crab", group="Types", options=[".618 XA","1.272 XA","1.618 XA",".618 CD","1.272 CD","1.618 CD","A","B","C"])
+// Pattern Inputs
+var pctErr = input.float(15.0,"Allowed fib ratio error %",step=1.0,minval=0.0,maxval=50.0,group="Pattern",inline="err")
+var pctAsym = input.float(125.0,"Allowed leg length asymmetry %",step=1.0,minval=0.0,maxval=500.0,group="Pattern",inline="asym")
+var w_e = input.float(4.0,"Weight",step=.1,minval=0.0,group="Pattern",inline="err",tooltip="A leg is considered valid if its retracement (ΔY) ratio is within this % of the defined harmonic ratio. Weight determines the weight of retracement % error in the total score calculation for a pattern.")
+var w_a = input.float(0.25,"Weight",step=.1,minval=0.0,group="Pattern",inline="asym",tooltip="A leg is considered valid if its length (ΔX/number of bars) is within this % of the average length of the other legs in the pattern. Weight determines the weight of length asymmetry in the total score calculation for a pattern.")
+var w_p = input.float(2.0,"Weight of PRZ level confluence",step=.1,minval=0.0,group="Pattern",tooltip="Weight applied to Potential Reversal Zone fib level confluence in the total score calculation for a pattern. The closer together the two closest PRZ fib levels are, the higher the score.")
+var w_d = input.float(3.0,"Weight of point D / PRZ level confluence",step=.1,minval=0.0,group="Pattern",tooltip="Weight applied to the confluence of point D with the Potential Reversal Zone levels in the total score calculation for a pattern. The closer point D is to either of the two confluent PRZ fib levels, the higher the score. ")
+var stopPct = input.float(60,"Stop",step=1.0,minval=0.0,group="Pattern",inline="stop")
+var stopB = input.string("of distance to target 1, beyond point D","%",options=["beyond furthest PRZ level","beyond point D","of distance to target 1, beyond point D"],group="Pattern",inline="stop",tooltip="Set stop-loss % beyond the specified level. If price reaches this level before the first target is hit, or before the target timeout period expires, the pattern will be considered a failure.\n'of distance to target 1' = a percentage of the distance from point D to target 1.\n\n'from point d' = percentage above/below point D.\n\n'from furthest PRZ level' = percentage above/below the furthest PRZ level (beyond point D)")
+var tLimitMult = input.float(1.5,"Pattern time limit",group="Pattern",step=.1,minval=.1,tooltip="Time limit for a completed pattern to reach the projected targets. Value is specified in terms of total pattern length (point X to point D), i.e. a value of 1 will allow one pattern length to elapse before the pattern times out and can no longer be considered successful. Patterns that time out will not count towards the success rates in the results table.")
+var hScore = input.float(90.0,"High score",step=1.0,minval=0.0,maxval=100.0,group="Pattern",tooltip="Total pattern scores above this value will show a different color label.")
+//var histOn = input.bool(true, "Show history and results", inline="type", group="Pattern")
+//*** Inc pattern in dev
+//var nLegs = input.int(3,"Show pattern in progress after N legs",options=[3,4],group="Pattern",tooltip="A pattern in progress must have this number of legs completed before it will be drawn.")
+// Display Inputs
+var c_bline = input.color(color.new(color.green,20), "Bullish lines", group="Display")
+var c_beline = input.color(color.new(color.red,20), "Bearish lines", group="Display")
+var c_blab = input.color(color.new(color.green,40), "Bullish labels", group="Display")
+var c_belab = input.color(color.new(color.red,40), "Bearish labels", group="Display")
+var c_high = input.color(color.new(#dcab42, 20), "High scoring label", group="Display", inline="hs")
+var highAbove = input.float(90.0, "for scores above", step=.1, minval=0.0, maxval=99, inline="hs", group="Display")
+var l_txt = input.color(color.new(color.white,20), "Label text", group="Display")
+
+// Fib vars
+var f1618 = fib.fib_precise(1.618)
+var f2618 = fib.fib_precise(2.618)
+var f786 = fib.fib_precise(0.786)
+var f886 = fib.fib_precise(0.886)
+var f1272 = fib.fib_precise(1.272)
+var f382 = fib.fib_precise(0.382)
+var f618 = fib.fib_precise(0.618)
+
+// Completed pattern arrays
+var string[] pat = array.from("a1","a2","a3","a4","b1","b2","b3","b4")
+var string[] bullGart = array.new_string(0)
+var string[] bullBat = array.new_string(0)
+var string[] bullBfly = array.new_string(0)
+var string[] bullCrab = array.new_string(0)
+var string[] bearGart = array.new_string(0)
+var string[] bearBat = array.new_string(0)
+var string[] bearBfly = array.new_string(0)
+var string[] bearCrab = array.new_string(0)
+// Corresponding pattern label arrays
+var label[] bullGartL = array.new_label(0)
+var label[] bullBatL = array.new_label(0)
+var label[] bullBflyL = array.new_label(0)
+var label[] bullCrabL = array.new_label(0)
+var label[] bearGartL = array.new_label(0)
+var label[] bearBatL = array.new_label(0)
+var label[] bearBflyL = array.new_label(0)
+var label[] bearCrabL = array.new_label(0)
+
+//*** Inc pattern in dev
+// Current incomplete pattern
+// var float[] inc = array.new_float(12)
+// var line[] incL = array.new_line(0)
+// var label[] incLab = array.new_label(0)
+// var bool it = na
+// var bool ih1 = na, var bool ih2 = na, var bool ih3 = na, var bool ih4 = na
+// var int ixX = na, var float ixY = na
+// var int iaX = na, var float iaY = na
+// var int ibX = na, var float ibY = na
+// var int icX = na, var float icY = na
+// var line ixa = na, var line iab = na, var line ibc = na, var line icd = na
+
+//-----------------------------------------
+// functions
+//-----------------------------------------
+
+bullCount(h=0) =>
+    if h==0
+        array.size(bullGart) + array.size(bullBat) + array.size(bullBfly) + array.size(bullCrab)
+    else if h==1
+        array.size(bullGart)
+    else if h==2
+        array.size(bullBat)
+    else if h==3
+        array.size(bullBfly)
+    else if h==4
+        array.size(bullCrab)
+    else
+        0
+
+bearCount(h=0) =>
+    if h==0
+        array.size(bearGart) + array.size(bearBat) + array.size(bearBfly) + array.size(bearCrab)
+    else if h==1
+        array.size(bearGart)
+    else if h==2
+        array.size(bearBat)
+    else if h==3
+        array.size(bearBfly)
+    else if h==4
+        array.size(bearCrab)
+    else
+        0
+
+count() =>
+    bullCount(0) + bearCount(0)
+
+// Type of harmonic pat
+// Assumes pattern is complete, and therefore only one can be true
+tp(h1,h2,h3,h4) =>
+    if h1==true
+        1
+    else if h2==true
+        2
+    else if h3==true
+        3
+    else
+        4
+
+// Retracement ratios and % error from theoretical harmonics
+getRatAndErr(l,l1,l2,h1,h2,h3,h4) =>
+    r = 0.0
+    e = 0.0
+    if l=="xb"
+        r := math.abs(l1)/math.abs(l2)
+        e := if h1==true
+            math.abs(1-(r/f618))
+        else if h2==true
+            math.min(math.abs(1-(r/f382)),math.abs(1-(r/.5)))
+        else if h3==true
+            math.abs(1-(r/f786))
+        else if h4==true
+            math.min(math.abs(1-(r/f382)),math.abs(1-(r/f618)))
+    else if l=="ac"
+        r := math.abs(l1)/math.abs(l2)
+        e := math.min(math.abs(1-(r/f382)),math.abs(1-(r/f886)))   
+    else if l=="bd"
+        r := math.abs(l1)/math.abs(l2)
+        e := if h1==true
+            math.min(math.abs(1-(r/f1272)),math.abs(1-(r/f1618)))
+        else if h2==true
+            math.min(math.abs(1-(r/f1618)),math.abs(1-(r/f2618)))
+        else if h3==true
+            math.min(math.abs(1-(r/f1618)),math.abs(1-(r/f2618)))
+        else if h4==true
+            math.min(math.abs(1-(r/2.24)),math.abs(1-(r/3.618)))   
+    if l=="xd"
+        r := math.abs(l1)/math.abs(l2)
+        e := if h1==true
+            math.abs(1-(r/f786))
+        else if h2==true
+            math.abs(1-(r/f886))
+        else if h3==true
+            math.min(math.abs(1-(r/f1272)),math.abs(1-(r/f1618)))
+        else if h4==true
+            math.abs(1-(r/f1618))
+    [r,e]
+
+// avg retracement ratio % error 
+eAvg(xbre,acre,bdre,xdre,h1,h2,h3,h4) =>
+    if h1==true
+        (xbre+acre+bdre+xdre)/4
+    else if h2==true
+        (xbre+acre+bdre+xdre)/4
+    else if h3==true
+        (xbre+acre+bdre+xdre)/4
+    else if h4==true
+        (xbre+acre+bdre+xdre)/4
+    else
+        1.0
+
+// avg asymmetry %
+asym(xX,aX,bX,cX,dX) =>
+    xa = math.abs(1 - ((aX-xX) / (((bX-aX)+(cX-bX)+(dX-cX))/3)))
+    ab = math.abs(1 - ((bX-aX) / (((aX-xX)+(cX-bX)+(dX-cX))/3)))
+    bc = math.abs(1 - ((cX-bX) / (((aX-xX)+(bX-aX)+(dX-cX))/3)))
+    cd = math.abs(1 - ((dX-cX) / (((aX-xX)+(bX-aX)+(cX-bX))/3)))
+    (xa+ab+bc+cd)/4
+
+// upper and lower PRZ levels
+przRange(bcN,bcF,xaN,xaF) =>
+    upper = na(xaF) ? math.max(bcN,bcF,xaN) : math.max(bcN,bcF,xaN,xaF)
+    lower = na(xaF) ? math.min(bcN,bcF,xaN) : math.min(bcN,bcF,xaN,xaF)
+    [upper,lower]
+
+// measure closeness of D to either of the two closest PRZ levels, relative to height of the PRZ
+eD(dY,cpl1,cpl2,bcN,bcF,xaN,xaF) =>
+    [upper,lower] = przRange(bcN,bcF,xaN,xaF)
+    h = upper - lower
+    dCpl = math.abs(cpl1-dY) > math.abs(cpl2-dY) ? math.abs(cpl2-dY) : math.abs(cpl1-dY)
+    dCpl/h
+
+// measure the closeness of the two closest PRZ levels, relative to the height of the PRZ
+przScore(l1,l2,l3,l4,xY,aY,bY,cY,dY) =>
+    float[] prz = na(l4) ? array.from(l1,l2,l3) : array.from(l1,l2,l3,l4)
+    array.sort(prz)
+    h = array.max(prz) - array.min(prz)
+    v1 = array.get(prz,0), 
+    v2 = array.get(prz,1),
+    ld = v2 - v1
+    if array.get(prz,2) - array.get(prz,1) < ld
+        ld := array.get(prz,2) - array.get(prz,1)
+        v1 := array.get(prz,1)
+        v2 := array.get(prz,2)
+    if array.size(prz) == 4
+        if array.get(prz,3) - array.get(prz,2) < ld
+            ld := array.get(prz,3) - array.get(prz,2)
+            v1 := array.get(prz,2)
+            v2 := array.get(prz,3)
+    // score = closeness of the two closest PRZ levels (% relative to total PRZ height)
+    score = 1 - (ld/(2*h))
+    [score, v1, v2]
+
+// map actual target level from param
+resolveTarget(param,xY,aY,bY,cY,dY) =>
+    switch param
+        ".618 XA" => ((aY-xY)*f618 + dY) > 0 ? (aY-xY)*f618 + dY : 0.0
+        "1.272 XA" => ((aY-xY)*f1272 + dY) > 0 ? (aY-xY)*f1272 + dY : 0.0
+        "1.618 XA" => ((aY-xY)*f1618 + dY) > 0 ? (aY-xY)*f1618 + dY : 0.0
+        ".618 CD" => ((cY-dY)*f618 + dY) > 0 ? (cY-dY)*f618 + dY : 0.0
+        "1.272 CD" => ((cY-dY)*f1272 + dY) > 0 ? (cY-dY)*f1272 + dY : 0.0
+        "1.618 CD" => ((cY-dY)*f1618 + dY) > 0 ? (cY-dY)*f1618 + dY : 0.0
+        "A" => aY
+        "B" => bY
+        "C" => cY
+
+//*** TODO move to TA library
+// get target
+harmonic_xabcd_targets(tp,xY,aY,bY,cY,dY) =>
+    t1=0.0, t2=0.0
+    if tp == 4
+        t1 := resolveTarget(crab_t1,xY,aY,bY,cY,dY)
+        t2 := resolveTarget(crab_t2,xY,aY,bY,cY,dY)
+    else if tp == 3
+        t1 := resolveTarget(bfly_t1,xY,aY,bY,cY,dY)
+        t2 := resolveTarget(bfly_t2,xY,aY,bY,cY,dY)
+    else if tp == 2
+        t1 := resolveTarget(bat_t1,xY,aY,bY,cY,dY)
+        t2 := resolveTarget(bat_t2,xY,aY,bY,cY,dY)
+    else
+        t1 := resolveTarget(gart_t1,xY,aY,bY,cY,dY)
+        t2 := resolveTarget(gart_t2,xY,aY,bY,cY,dY)
+    [t1,t2]
+
+// Timeout period
+tLimit(xX,dX) =>
+    int((dX - xX)*tLimitMult)
+
+// Pattern still active within timeout period
+stillActive(xX,dX) =>
+    bar_index - tLimit(xX,dX) <= dX
+
+stop(t,dY,upper,lower,t1) =>
+    if t==true
+        if stopB == "beyond point D"
+            dY * (1-stopPct/100)
+        else if stopB == "of distance to target 1, beyond point D"
+            dY - (stopPct/100)*(t1-dY)
+        else
+            lower * (1-stopPct/100)
+    else
+        if stopB == "beyond point D"
+            dY * (1+stopPct/100)
+        else if stopB == "of distance to target 1, beyond point D"
+            dY + (stopPct/100)*(dY-t1)
+        else
+            upper * (1+stopPct/100)
+
+// Determine if pattern has succeeded or failed, or neither (na)
+success(t,tp,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,bcN,bcF,xaN,xaF,int n_o=na) =>
+    bool t1Hit = na 
+    bool t2Hit = na
+    if stillActive(xX,dX) == false or not na(n_o)
+        n = na(n_o) ? tLimit(xX,dX) : n_o
+        [t1,t2] = harmonic_xabcd_targets(tp,xY,aY,bY,cY,dY)
+        [upper,lower] = przRange(bcN,bcF,xaN,xaF)
+        stop = stop(t,dY,upper,lower,t1)
+        for i = 0 to n
+            if t == true
+                if high[n-i] >= t2
+                    t1Hit := true
+                    t2Hit := true
+                    break
+                else if high[n-i] >= t1
+                    t1Hit := true
+                else if low[n-i] < stop
+                    t1Hit := t1Hit==true ? true : false
+                    t2Hit := false
+                    break
+            else
+                if low[n-i] <= t2
+                    t1Hit := true
+                    t2Hit := true
+                    break
+                else if low[n-i] <= t1
+                    t1Hit := true
+                else if high[n-i] > stop
+                    t1Hit := t1Hit==true ? true : false
+                    t2Hit := false
+                    break
+    [t1Hit,t2Hit]
+
+// stringify pattern values for pseudo multi-dimensional array value (workaround for data structure limitations)
+stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,bool t1Hit=na,bool t2Hit=na) =>
+    tAndH = (t==true?"1_":"0_")+(h1==true?"1_":"0_")+(h2==true?"1_":"0_")+(h3==true?"1_":"0_")+(h4==true?"1_":"0_")
+    x = str.tostring(xX) + "_" + str.tostring(xY) + "_"
+    a = str.tostring(aX) + "_" + str.tostring(aY) + "_"
+    b = str.tostring(bX) + "_" + str.tostring(bY) + "_"
+    c = str.tostring(cX) + "_" + str.tostring(cY) + "_"
+    d = str.tostring(dX) + "_" + str.tostring(dY) + "_"
+    [xbr,xbre] = getRatAndErr("xb",aY-bY,aY-xY,h1,h2,h3,h4)
+    [acr,acre] = getRatAndErr("ac",cY-bY,aY-bY,h1,h2,h3,h4)
+    [bdr,bdre] = getRatAndErr("bd",cY-dY,cY-bY,h1,h2,h3,h4)
+    [xdr,xdre] = getRatAndErr("xd",aY-dY,aY-xY,h1,h2,h3,h4)
+    xb = str.tostring(xbr) + "_" + str.tostring(xbre) + "_"
+    ac = str.tostring(acr) + "_" + str.tostring(acre) + "_"
+    bd = str.tostring(bdr) + "_" + str.tostring(bdre) + "_"
+    xd = str.tostring(xdr) + "_" + str.tostring(xdre) + "_"
+    eavg = eAvg(xbre,acre,bdre,xdre,h1,h2,h3,h4)
+    asym = asym(xX,aX,bX,cX,dX)
+    eavgS = str.tostring(eavg) + "_"
+    asymS = str.tostring(asym) + "_"
+    tp = if h1==true
+        1
+    else if h2==true
+        2
+    else if h3==true
+        3
+    else if h4==true
+        4
+    [bcN,bcF,xaN,xaF] = t.harmonic_xabcd_prz(tp,xY,aY,bY,cY)
+    prz = str.tostring(bcN) + "_" + str.tostring(bcF) + "_" + str.tostring(xaN) + "_" + str.tostring(xaF) + "_"
+    [przscore,cpl1,cpl2] = przScore(bcN,bcF,xaN,xaF,xY,aY,bY,cY,dY)
+    przscoreS = str.tostring(przscore) + "_"
+    eD = eD(dY,cpl1,cpl2,bcN,bcF,xaN,xaF)
+    edS = str.tostring(eD) + "_"
+    s = ((1-asym)*w_a + (1-eavg)*w_e + przscore*w_p + (1-eD)*w_d)/(w_a+w_e+w_p+w_d) // total score value
+    score = str.tostring(s)
+    t1HitS = if na(t1Hit)
+        "na"
+    else if t1Hit == true
+        "1"
+    else
+        "0"
+    t2HitS = if na(t2Hit)
+        "na"
+    else if t2Hit == true
+        "1"
+    else
+        "0"
+    tHitS = t1HitS + "_" + t2HitS + "_"
+    //
+    tAndH + x + a + b + c + d + xb + ac + bd + xd + eavgS + asymS + prz + przscoreS + edS + tHitS + score
+
+// get pattern values from pseudo multi-dimensional array value (workaround for data structure limitations)
+unstringify(s) =>
+    v = str.split(s,"_")
+    t = array.get(v,0) == "1" ? true : false        // 0: bullish pattern flag
+    h1 = array.get(v,1) == "1" ? true : false       // 1: gartley flag
+    h2 = array.get(v,2) == "1" ? true : false       // 2: bat flag
+    h3 = array.get(v,3) == "1" ? true : false       // 3: butterfly flag
+    h4 = array.get(v,4) == "1" ? true : false       // 4: crab flag
+    xX = int(str.tonumber(array.get(v,5)))          // 5-14: point coordinates
+    xY = str.tonumber(array.get(v,6))               
+    aX = int(str.tonumber(array.get(v,7)))
+    aY = str.tonumber(array.get(v,8))
+    bX = int(str.tonumber(array.get(v,9)))
+    bY = str.tonumber(array.get(v,10))
+    cX = int(str.tonumber(array.get(v,11)))
+    cY = str.tonumber(array.get(v,12))
+    dX = int(str.tonumber(array.get(v,13)))
+    dY = str.tonumber(array.get(v,14))
+    xbr = str.tonumber(array.get(v,15))             // 15: XAB retracement ratio
+    xbre = str.tonumber(array.get(v,16))            // 16: XAB % error
+    acr = str.tonumber(array.get(v,17))             // 17: ABC retracement ratio
+    acre = str.tonumber(array.get(v,18))            // 18: ABC % error
+    bdr = str.tonumber(array.get(v,19))             // 19: BCD retracement ratio
+    bdre = str.tonumber(array.get(v,20))            // 20: BCD % error
+    xdr = str.tonumber(array.get(v,21))             // 21: XCD retracement ratio
+    xdre = str.tonumber(array.get(v,22))            // 22: XCD % error
+    eavg = str.tonumber(array.get(v,23))            // 23: avg retracement % error
+    sym = str.tonumber(array.get(v,24))             // 24: avg leg length % asymmetry 
+    bcN = str.tonumber(array.get(v,25))             // 25: (PRZ) BCD retracement near bound
+    bcF = str.tonumber(array.get(v,26))             // 26: (PRZ) BCD retracement far bound
+    xaN = str.tonumber(array.get(v,27))             // 27: (PRZ) XAD retracement near bound
+    xaF = array.get(v,28) == "NaN" ? na : str.tonumber(array.get(v,28)) // 28: (PRZ) XAD retracement near bound (na if only 1 XAD retracement defined)
+    prz = str.tonumber(array.get(v,29))             // 29: PRZ level % confluence
+    eD = str.tonumber(array.get(v,30))              // 30: Point D % error from PRZ sweet spot
+    t1Hit = if array.get(v,31) == "na"              // 31: Target 1 success flag
+        na
+    else if array.get(v,31) == "1"
+        true
+    else
+        false
+    t2Hit = if array.get(v,32) == "na"              // 32: Target 2 success flag
+        na
+    else if array.get(v,32) == "1"
+        true
+    else
+        false
+    score = str.tonumber(array.get(v,33))           // 33: Total score
+    //
+//   0 1  2  3  4  5  6  7  8  9  10 11 12 13 14  15  16   17  18   19  20   21  22   23   24  25  26  27  28  29 30   31    32   33
+    [t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,bcN,bcF,xaN,xaF,prz,eD,t1Hit,t2Hit,score]
+
+nToArray(n) =>
+    switch n
+        "a1" => bullGart
+        "a2" => bullBat
+        "a3" => bullBfly
+        "a4" => bullCrab
+        "b1" => bearGart
+        "b2" => bearBat
+        "b3" => bearBfly
+        "b4" => bearCrab
+
+nToArrayL(n) =>
+    switch n
+        "a1" => bullGartL
+        "a2" => bullBatL
+        "a3" => bullBflyL
+        "a4" => bullCrabL
+        "b1" => bearGartL
+        "b2" => bearBatL
+        "b3" => bearBflyL
+        "b4" => bearCrabL
+
+typeToArray(t,tp) =>
+    n = (t==true ? "a" : "b") + str.tostring(tp)
+    nToArray(n)
+
+typeToArrayL(t,tp) =>
+    n = (t==true ? "a" : "b") + str.tostring(tp)
+    nToArrayL(n)
+
+arrayToN(a) =>
+    switch a
+        "bullGart" => "a1"
+        "bullBat" => "a2"
+        "bullBfly" => "a3"
+        "bullCrab" => "a4"
+        "bearGart" => "b1"
+        "bearBat" => "b2"
+        "bearBfly" => "b3"
+        "bearCrab" => "b4"
+
+// Add pattern to completed pattern structure
+addValidPattern(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY) =>
+    // Bullish patterns
+    if t == true
+        // Gartley
+        if h1 == true
+            if array.size(bullGart)>0
+                // check last pattern. if same XABC, don't add it again.
+                last = array.get(bullGart,array.size(bullGart)-1)
+                [lt,lh1,lh2,lh3,lh4,lxX,lxY,laX,laY,lbX,lbY,lcX,lcY,ldX,ldY,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(last)
+                if xX!=lxX or aX!=laX or bX!=lbX or cX!=lcX
+                    stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                    array.push(bullGart,stringified)
+                    array.push(bullGartL,na)
+            else
+                stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                array.push(bullGart,stringified)
+                array.push(bullGartL,na)
+        // Bat
+        if h2 == true
+            if array.size(bullBat)>0
+                // check last pattern. if same XABC, don't add it again.
+                last = array.get(bullBat,array.size(bullBat)-1)
+                [lt,lh1,lh2,lh3,lh4,lxX,lxY,laX,laY,lbX,lbY,lcX,lcY,ldX,ldY,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(last)
+                if xX!=lxX or aX!=laX or bX!=lbX or cX!=lcX
+                    stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                    array.push(bullBat,stringified)
+                    array.push(bullBatL,na)
+            else
+                stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                array.push(bullBat,stringified)
+                array.push(bullBatL,na)
+        // Butterfly
+        if h3 == true
+            if array.size(bullBfly)>0
+                // check last pattern. if same XABC, don't add it again.
+                last = array.get(bullBfly,array.size(bullBfly)-1)
+                [lt,lh1,lh2,lh3,lh4,lxX,lxY,laX,laY,lbX,lbY,lcX,lcY,ldX,ldY,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(last)
+                if xX!=lxX or aX!=laX or bX!=lbX or cX!=lcX
+                    stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                    array.push(bullBfly,stringified)
+                    array.push(bullBflyL,na)
+            else
+                stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                array.push(bullBfly,stringified)
+                array.push(bullBflyL,na)
+        // Crab
+        if h4 == true
+            if array.size(bullCrab)>0
+                // check last pattern. if same XABC, don't add it again.
+                last = array.get(bullCrab,array.size(bullCrab)-1)
+                [lt,lh1,lh2,lh3,lh4,lxX,lxY,laX,laY,lbX,lbY,lcX,lcY,ldX,ldY,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(last)
+                if xX!=lxX or aX!=laX or bX!=lbX or cX!=lcX
+                    stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                    array.push(bullCrab,stringified)
+                    array.push(bullCrabL,na)
+            else
+                stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                array.push(bullCrab,stringified)
+                array.push(bullCrabL,na)
+
+    // Bearish patterns
+    else
+        // Gartley
+        if h1 == true
+            if array.size(bearGart)>0
+                // check last pattern. if same XABC, don't add it again.
+                last = array.get(bearGart,array.size(bearGart)-1)
+                [lt,lh1,lh2,lh3,lh4,lxX,lxY,laX,laY,lbX,lbY,lcX,lcY,ldX,ldY,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(last)
+                if xX!=lxX or aX!=laX or bX!=lbX or cX!=lcX
+                    stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                    array.push(bearGart,stringified)
+                    array.push(bearGartL,na)    // label gets update when pattern is drawn, every 500 bars
+            else
+                stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                array.push(bearGart,stringified)
+                array.push(bearGartL,na)
+        // Bat
+        if h2 == true
+            if array.size(bearBat)>0
+                // check last pattern. if same XABC, don't add it again.
+                last = array.get(bearBat,array.size(bearBat)-1)
+                [lt,lh1,lh2,lh3,lh4,lxX,lxY,laX,laY,lbX,lbY,lcX,lcY,ldX,ldY,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(last)
+                if xX!=lxX or aX!=laX or bX!=lbX or cX!=lcX
+                    stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                    array.push(bearBat,stringified)
+                    array.push(bearBatL,na)
+            else
+                stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                array.push(bearBat,stringified)
+                array.push(bearBatL,na)
+        // Butterfly
+        if h3 == true
+            if array.size(bearBfly)>0
+                // check last pattern. if same XABC, don't add it again.
+                last = array.get(bearBfly,array.size(bearBfly)-1)
+                [lt,lh1,lh2,lh3,lh4,lxX,lxY,laX,laY,lbX,lbY,lcX,lcY,ldX,ldY,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(last)
+                if xX!=lxX or aX!=laX or bX!=lbX or cX!=lcX
+                    stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                    array.push(bearBfly,stringified)
+                    array.push(bearBflyL,na)
+            else
+                stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                array.push(bearBfly,stringified)
+                array.push(bearBflyL,na)
+        // Crab
+        if h4 == true
+            if array.size(bearCrab)>0
+                // check last pattern. if same XABC, don't add it again.
+                last = array.get(bearCrab,array.size(bearCrab)-1)
+                [lt,lh1,lh2,lh3,lh4,lxX,lxY,laX,laY,lbX,lbY,lcX,lcY,ldX,ldY,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(last)
+                if xX!=lxX or aX!=laX or bX!=lbX or cX!=lcX
+                    stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                    array.push(bearCrab,stringified)
+                    array.push(bearCrabL,na)
+            else
+                stringified = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+                array.push(bearCrab,stringified)
+                array.push(bearCrabL,na)
+
+successTxt(t1Hit,t2Hit,xX,dX) =>
+    if t2Hit == true
+        " (Success - Target 1, Target 2)"
+    else if t1Hit==true
+        " (Success - Target 1)"
+    else if na(t1Hit) and stillActive(xX,dX) == true
+        " (Results pending)"
+    else if na(t1Hit)
+        " (Timed out)"
+    else
+        " (Failed)"
+
+name(bull,h1,h2,h3,h4) =>
+    if bull==true
+        if h1==true
+            "Bullish Gartley"
+        else if h2==true
+            "Bullish Bat"
+        else if h3==true
+            "Bullish Butterfly"
+        else
+            "Bullish Crab"
+    else
+        if h1==true
+            "Bearish Gartley"
+        else if h2==true
+            "Bearish Bat"
+        else if h3==true
+            "Bearish Butterfly"
+        else
+            "Bearish Crab"
+
+// Pattern tooltip
+ttTxt(bull,h1,h2,h3,h4,xX,xY,aY,bY,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,prz,eD,t1Hit,t2Hit,score) =>
+    tp = tp(h1,h2,h3,h4)
+    [t1,t2] = harmonic_xabcd_targets(tp,xY,aY,bY,cY,dY)
+    rb = if h1==true
+        "0.618"
+    else if h2==true
+        "0.382 | 0.5"
+    else if h3==true
+        "0.786"
+    else if h4==true
+        "0.382 | 0.618"
+    //
+    rd1 = if h1==true
+        "1.272 | 1.618"
+    else if h2==true
+        "1.618 | 2.618"
+    else if h3==true
+        "1.618 | 2.618"
+    else if h4==true
+        "2.24 | 3.618"
+    //
+    rd2 = if h1==true
+        "0.786"
+    else if h2==true
+        "0.886"
+    else if h3==true
+        "1.272 | 1.618"
+    else if h4==true
+        "1.618"
+
+    l1 = name(bull,h1,h2,h3,h4) + successTxt(t1Hit,t2Hit,xX,dX) + "\n\n"
+    l2 = "Total Score:  " + str.tostring(score*100,"#.###") + "%\n"
+    l3 = "   Leg retracement accuracy:  " + str.tostring((1-eavg)*100, "#.##") + "%\n"
+    l4 = "   Leg length (ΔX) symmetry:  " + str.tostring((1-sym)*100, "#.##") + "%\n"
+    l42 = "   PRZ level confluence:  " + str.tostring(prz*100, "#.##") + "%\n"
+    l43 = "   Point D confluence with PRZ:  " + str.tostring((1-eD)*100, "#.##") + "%\n"
+    l5 = "\n               Actual        Theoretical\n"
+    l6 = "AB/XA      " + str.tostring(xbr, "#.###") + "         " + rb + "\n"
+    l7 = "BC/AB      " + str.tostring(acr, "#.###") + "         " + "0.382 | 0.886\n"
+    l8 = "CD/BC      " + str.tostring(bdr, "#.###") + "         " + rd1 + "\n"
+    l9 = "CD/XA      " + str.tostring(xdr, "#.###") + "         " + rd2 + "\n\n"
+    // l10 = "Target 1:  " + str.tostring(t1,"#.###") + (t1Hit == true ? "   Success\n" : "   Failure\n")
+    // l11 = "Target 2:  " + + str.tostring(t2,"#.###") + (t2Hit == true ? "   Success" : "   Failure")
+    l1 + l2 + l3 + l4 + l42 + l43 + l5 + l6 + l7 + l8 + l9
+    //  + l10 + l11
+
+symbol(tp) =>
+    if tp=="gart"
+        "Ǥ"
+    else if tp=="bat"
+        "🦇"
+    else if tp=="bfly"
+        "🦋"
+    else if tp=="crab"
+        "🦀"
+    else
+        ""
+
+status(xX,dX,t1Hit) =>
+    if t1Hit==true
+        " ✅"
+    else if na(t1Hit) and stillActive(xX,dX) == true
+        " ⏳"
+    else if na(t1Hit)
+        " 🕝"
+    else
+        " ❌"
+
+lbTxt(h1,h2,h3,h4,score,status) =>
+    if h1==true
+        symbol("gart") + " " + str.tostring(math.round(score,3)*100) + "%" + status
+    else if h2==true
+        symbol("bat") + " " + str.tostring(math.round(score,3)*100) + "%" + status
+    else if h3==true
+        symbol("bfly") + " " + str.tostring(math.round(score,3)*100) + "%" + status
+    else if h4==true
+        symbol("crab") + " " + str.tostring(math.round(score,3)*100) + "%" + status
+    else
+        ""
+
+drawPattern(xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,bull,h1,h2,h3,h4,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,prz,eD,t1Hit,t2Hit,score) =>
+    if bar_index - 500 < xX     // anything outside of hist buffer will have already been drawn
+        lcol = if bull==true
+            c_bline
+        else
+            c_beline
+        ccol = color.new(color.gray,30)
+        w = 3
+        cw = 1
+        cstyle = line.style_dotted
+        lbcol = if score > highAbove/100
+            c_high
+        else if bull==true
+            c_blab
+        else
+            c_belab
+        lbstyle = bull==true ? label.style_label_up : label.style_label_down
+        lbtcol = l_txt
+        lbsize = if score > highAbove/100
+            size.normal
+        else
+            size.small
+        status = status(xX,dX,t1Hit)
+        lbTxt = lbTxt(h1,h2,h3,h4,score,status)
+        tt = ttTxt(bull,h1,h2,h3,h4,xX,xY,aY,bY,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,prz,eD,t1Hit,t2Hit,score)
+        // pattern lines
+        line.new(xX,xY,aX,aY,color=lcol,width=w)
+        line.new(aX,aY,bX,bY,color=lcol,width=w)
+        if cX > 0
+            line.new(bX,bY,cX,cY,color=lcol,width=w)
+        if dX > 0
+            line.new(cX,cY,dX,dY,color=lcol,width=w)
+
+        // Return the label
+        label.new(dX,dY,text=lbTxt,textcolor=lbtcol,size=size.small,style=lbstyle,tooltip=tt,color=lbcol)
+    else
+        na
+        
+drawPatternFromStr(s) =>
+    [t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,bcN,bcF,xaN,xaF,prz,eD,t1Hit,t2Hit,score] = unstringify(s)
+    // Returns label
+    drawPattern(xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,t,h1,h2,h3,h4,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,prz,eD,t1Hit,t2Hit,score)
+
+// Get bar_index of point D of the last pattern of a given type
+getLastD(n) =>
+    //n = arrayToN(arr)
+    a = nToArray(n)
+    [_,_,_,_,_,_,_,_,_,_,_,_,_,d,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_] = unstringify(array.get(a,array.size(a)-1))
+    d
+
+// get the last completed pattern
+lastPattern(t="") =>
+    s1 = array.size(bullGart)
+    s2 = array.size(bullBat)
+    s3 = array.size(bullBfly)
+    s4 = array.size(bullCrab)
+    s5 = array.size(bearGart)
+    s6 = array.size(bearBat)
+    s7 = array.size(bearBfly)
+    s8 = array.size(bearCrab)
+    ld = 0
+    lp = 0
+    if s1 > 0 and (t=="" or t=="a1")
+        d = getLastD("a1")
+        if d > ld
+            ld := d
+            lp := 1
+    if s2 > 0 and (t=="" or t=="a2")
+        d = getLastD("a2")
+        if d > ld
+            ld := d
+            lp := 2
+    if s3 > 0 and (t=="" or t=="a3")
+        d = getLastD("a3")
+        if d > ld
+            ld := d
+            lp := 3
+    if s4 > 0 and (t=="" or t=="a4")
+        d = getLastD("a4")
+        if d > ld
+            ld := d
+            lp := 4
+    if s5 > 0 and (t=="" or t=="b1")
+        d = getLastD("b1")
+        if d > ld
+            ld := d
+            lp := 5
+    if s6 > 0 and (t=="" or t=="b2")
+        d = getLastD("b2")
+        if d > ld
+            ld := d
+            lp := 6
+    if s7 > 0 and (t=="" or t=="b3")
+        d = getLastD("b3")
+        if d > ld
+            ld := d
+            lp := 7
+    if s8 > 0 and (t=="" or t=="b4")
+        d = getLastD("b4")
+        if d > ld
+            ld := d
+            lp := 8
+    //
+    if lp==1
+        unstringify(array.get(bullGart,s1-1))
+    else if lp==2
+        unstringify(array.get(bullBat,s2-1))
+    else if lp==3
+        unstringify(array.get(bullBfly,s3-1))
+    else if lp==4
+        unstringify(array.get(bullCrab,s4-1))
+    else if lp==5
+        unstringify(array.get(bearGart,s5-1))
+    else if lp==6
+        unstringify(array.get(bearBat,s6-1))
+    else if lp==7
+        unstringify(array.get(bearBfly,s7-1))
+    else if lp==8
+        unstringify(array.get(bearCrab,s8-1))
+    else
+        [na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na,na]
+
+//*** TODO: remove unused args
+stillValid(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY) =>
+    bb = bar_index - dX
+    if bb <= 3
+        if t==true
+            if low < dY or low[1] < dY or low[2] < dY
+                false
+            else
+                true
+        else
+            if high > dY or high[1] > dY or high[2] > dY
+                false
+            else
+                true
+    else
+        true
+
+// Update most recently added pattern of each type, if necessary
+updateLast() =>
+    for n in pat
+        [t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,bcN,bcF,xaN,xaF,prz,eD,t1Hit,t2Hit,score] = lastPattern(n)
+        if not na(t)
+            tLimit = tLimit(xX,dX)
+            // remove last pattern if it has since been invalidated
+            if stillValid(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY) != true
+                array.pop(nToArray(n))
+                array.pop(nToArrayL(n))
+
+            // else update success flags
+            else if na(t1Hit) and bar_index == (dX + tLimit + 1)   // update success flags on bar after time limit
+                tp = tp(h1,h2,h3,h4)
+                [t1h,t2h] = success(t,tp,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,bcN,bcF,xaN,xaF)
+                s = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,t1h,t2h)
+                i = array.size(nToArray(n))-1
+                array.set(nToArray(n),i,s)
+                
+                for j=0 to tLimit
+                    // If pattern is in progress across a %500 bar, the label will be drawn before the pattern results
+                    // are finalized. In this case we need to update the label with the results.
+                    //*** TO DO: need to store pending patterns in a separate structure and loop through them all because
+                    //           it's possible that a pending pattern that crosses a %500 bar is not the last pattern in the
+                    //           array. Acceptable risk for now, will only affect the label display (array structure and 
+                    //           results table will still be correct.)
+                    if bar_index[j]%500 == 0
+                        tt = ttTxt(t,h1,h2,h3,h4,xX,xY,aY,bY,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,prz,eD,t1h,t2h,score)
+                        status = status(xX,dX,t1h)
+                        lbTxt = lbTxt(h1,h2,h3,h4,score,status)
+                        lbl = array.get(nToArrayL(n),i)
+                        label.set_text(lbl,lbTxt)
+                        label.set_tooltip(lbl,tt)
+        ""
+
+fullInProgress(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,bcN,bcF,xaN,xaF,score,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,prz,eD) =>
+    flag = true
+    bb = last_bar_index - dX
+    avgX = ((dX-cX)+(cX-bX)+(bX-aX)+(aX-xX))/4
+    tLimit = tLimit(xX,dX)
+    if bb <= tLimit   // within time limit
+        type = tp(h1,h2,h3,h4)
+        [u,l] = przRange(bcN,bcF,xaN,xaF)
+        [t1h,t2h] = success(t,type,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,bcN,bcF,xaN,xaF,bb)
+        // Update array structure and label if target or stop hit
+        if not na(t1h)
+            status = status(xX,dX,t1h)
+            lbTxt = lbTxt(h1,h2,h3,h4,score,status)
+            ttTxt = ttTxt(t,h1,h2,h3,h4,xX,xY,aY,bY,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,prz,eD,t1h,t2h,score)
+            i = array.size(typeToArrayL(t,type))-1
+            lbl = array.get(typeToArrayL(t,type),i)
+            label.set_text(lbl,lbTxt)
+            label.set_tooltip(lbl,ttTxt)
+            // update array entry
+            s = stringify(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,t1h,t2h)
+            j = array.size(typeToArray(t,type))-1
+            array.set(typeToArray(t,type),j,s)
+
+        [flag, bcN, bcF, xaN, xaF, tLimit]
+    else
+        [false, na, na, na, na, na]
+
+distX(dY,pH,p,avgLeg) =>
+    halfLeg = math.round(avgLeg/2)
+    qLeg = math.round(avgLeg/4)
+    eLeg = math.round(avgLeg/8)
+    dist = math.abs(p-dY)/pH
+    if dist>.75
+        avgLeg + qLeg + eLeg
+    else if dist > .5
+        avgLeg + qLeg
+    else if dist > .25
+        avgLeg + eLeg
+    else if dist > .1
+        avgLeg
+    else
+        0
+
+drawFullInProgress() =>
+    [t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,bcN,bcF,xaN,xaF,prz,eD,t1Hit,t2Hit,score] = lastPattern()
+    if not na(dX)
+        [flag, bc_u, bc_l, xa_u, xa_l, tLimit] = fullInProgress(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,bcN,bcF,xaN,xaF,score,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,prz,eD)
+        // If in pattern is in progress, draw PRZ and projections
+        if flag == true
+            ccol = color.new(color.gray,30)
+            red = color.new(color.red,50)
+            grn = color.new(color.green,50)
+            ccl = color.new(color.white,100)
+            cltxt = l_txt
+            clbkg = color.new(color.blue,100)
+            cproj = t==true ? c_bline : c_beline
+            cproj2 = t==true ? grn : red
+            przFill = color.new(color.red,80)
+            tgtFill = color.new(color.green,80)
+
+            midX = math.round(tLimit/2)
+            avgLeg = math.round(dX-xX)/4
+            [highest,lowest] = przRange(bcN,bcF,xaN,xaF)
+            pH = highest-lowest
+
+        // Draw potential reversal zone
+            // BC retracement projections
+            line l_bcN = na, line l_bcF = na, line l_xaN = na, line l_xaF = na
+            line przH = na, line przL = na
+            l_bcN := line.new(dX,bcN,dX+tLimit,bcN,color=red,width=5)
+            line.new(bX,bY,dX,bcN,style=line.style_dotted,color=ccol)
+            label.new(dX+midX,bcN,str.tostring(math.round(bcN,3)),style=label.style_label_center,color=clbkg,textcolor=cltxt,size=size.tiny)
+            if bcN == highest
+                przH := l_bcN
+            else if bcN == lowest
+                przL := l_bcN
+            l_bcF := line.new(dX,bcF,dX+tLimit,bcF,color=red,width=5)
+            line.new(bX,bY,dX,bcF,style=line.style_dotted,color=ccol)
+            label.new(dX+midX,bcF,str.tostring(math.round(bcF,3)),style=label.style_label_center,color=clbkg,textcolor=cltxt,size=size.tiny)
+            if bcF == highest
+                przH := l_bcF
+            else if bcF == lowest
+                przL := l_bcF
+            // XA retracement projections
+            l_xaN := line.new(dX,xaN,dX+tLimit,xaN,color=red,width=6)
+            line.new(xX,xY,dX,xaN,style=line.style_dotted,color=ccol)
+            label.new(dX+int(midX/2),xaN,str.tostring(math.round(xaN,3)),style=label.style_label_center,color=clbkg,textcolor=cltxt,size=size.tiny)
+            if xaN == highest
+                przH := l_xaN
+            else if xaN == lowest
+                przL := l_xaN
+            if not na(xaF)
+                l_xaF := line.new(dX,xaF,dX+tLimit,xaF,color=red,width=6)
+                line.new(xX,xY,dX,xaF,style=line.style_dotted,color=ccol)
+                label.new(dX+int(midX/2),xaF,str.tostring(math.round(xaF,3)),style=label.style_label_center,color=clbkg,textcolor=cltxt,size=size.tiny)
+                if xaF == highest
+                    przH := l_xaF
+                else if xaF == lowest
+                    przL := l_xaF
+            linefill.new(przL,przH,przFill)
+            tp = tp(h1,h2,h3,h4)
+            [t1,t2] = harmonic_xabcd_targets(tp,xY,aY,bY,cY,dY)
+            stop = stop(t,dY,highest,lowest,t1)
+            line.new(dX,stop,dX+tLimit,stop,color=red,width=6)
+            label.new(dX+midX,stop,"Stop:  "+str.tostring(math.round(stop,3)),style=label.style_label_center,color=clbkg,textcolor=cltxt,size=size.tiny)
+
+        // Reversal projections (XA retracement/extension)
+            fromD = false
+            if (t==true and bcN > dY) or (t==false and bcN < dY)
+                line.new(dX,dY,dX+avgLeg,t1,color=cproj,style=line.style_arrow_right,width=2)
+                fromD := true
+            else
+                distX = distX(dY,pH,bcN,avgLeg)
+                x1_2 = dX+int(distX/2)
+                x2_2 = x1_2+distX
+                if distX != 0
+                    line.new(dX,dY,x1_2,bcN,color=cproj2,width=2)
+                    line.new(x1_2,bcN,x2_2,t1,color=cproj2,style=line.style_arrow_right,width=2)
+
+            if (t==true and bcF > dY) or (t==false and bcF < dY)
+                if fromD==false
+                    line.new(dX,dY,dX+avgLeg,t1,color=cproj,style=line.style_arrow_right,width=2)
+                    fromD := true
+            else
+                distX = distX(dY,pH,bcF,avgLeg)                
+                x1_2 = dX+int(distX/2)
+                x2_2 = x1_2+distX
+                if distX != 0
+                    line.new(dX,dY,x1_2,bcF,color=cproj2,width=2)
+                    line.new(x1_2,bcF,x2_2,t1,color=cproj2,style=line.style_arrow_right,width=2)
+
+            if (t==true and xaN > dY) or (t==false and xaN < dY)
+                if fromD==false
+                    line.new(dX,dY,dX+avgLeg,t1,color=cproj,style=line.style_arrow_right,width=2)
+                    fromD := true
+            else
+                distX = distX(dY,pH,xaN,avgLeg)                
+                x1_2 = dX+int(distX/2)
+                x2_2 = x1_2+distX
+                if distX != 0
+                    line.new(dX,dY,x1_2,xaN,color=cproj2,width=2)
+                    line.new(x1_2,xaN,x2_2,t1,color=cproj2,style=line.style_arrow_right,width=2)
+
+            if (t==true and xaF > dY) or (t==false and xaF < dY)
+                if fromD==false
+                    if not na(xaF)
+                        line.new(dX,dY,dX+avgLeg,t1,color=cproj,style=line.style_arrow_right,width=2)
+                        fromD := true
+            else
+                distX = distX(dY,pH,xaF,avgLeg)
+                x1_2 = dX+int(distX/2)
+                x2_2 = x1_2+distX
+                if distX != 0
+                    line.new(dX,dY,x1_2,xaF,color=cproj2,width=2)
+                    line.new(x1_2,xaF,x2_2,t1,color=cproj2,style=line.style_arrow_right,width=2)
+            if fromD == false
+                line.new(dX,dY,dX+avgLeg,t1,color=cproj,style=line.style_arrow_right,width=2)
+
+        // Targets
+            l_t1 = line.new(dX,t1,dX+tLimit,t1,color=grn,width=5)
+            label.new(dX+midX,t1,"T1:  " + str.tostring(math.round(t1,3)),style=label.style_label_center,color=clbkg,textcolor=cltxt,size=size.tiny)
+            l_t2 = line.new(dX,t2,dX+tLimit,t2,color=grn,width=5)
+            label.new(dX+midX,t2,"T2:  " + str.tostring(math.round(t2,3)),style=label.style_label_center,color=clbkg,textcolor=cltxt,size=size.tiny)
+            linefill.new(l_t1,l_t2,tgtFill)
+
+rowValues(tp) =>
+    string[] a1 = na
+    string[] a2 = na
+    if tp==1
+        a1 := bullGart
+        a2 := bearGart
+    else if tp==2
+        a1 := bullBat
+        a2 := bearBat
+    else if tp==3
+        a1 := bullBfly
+        a2 := bearBfly
+    else
+        a1 := bullCrab
+        a2 := bearCrab
+    bu = array.size(a1)
+    be = array.size(a2)
+    buNa = 0    // count in progress/timed out patterns so they can be subtracted from the total
+    beNa = 0    // count in progress/timed out patterns so they can be subtracted from the total
+    //*** high scoring statistics in dev
+    // buHsNa = 0  // count high scoring in progress/timed out patterns so they can be subtracted from the total
+    // beHsNa = 0  // count high scoring in progress/timed out patterns so they can be subtracted from the total
+    tHs = 0, tHss = 0
+    ts1 = 0, ts2 = 0
+    for p in a1
+        [t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,bcN,bcF,xaN,xaF,prz,eD,t1Hit,t2Hit,score] = unstringify(p)
+        if na(t1Hit)
+            buNa+=1
+        else if t1Hit == true
+            ts1+=1
+            // if score*100 >= hScore
+            //     tHss+=1
+        if t2Hit == true
+            ts2+=1
+        // if score*100 >= hScore
+        //     tHs+=1
+        //     if na(t1Hit)
+        //         buHsNa+=1
+    for p in a2
+        [t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,xbr,xbre,acr,acre,bdr,bdre,xdr,xdre,eavg,sym,bcN,bcF,xaN,xaF,prz,eD,t1Hit,t2Hit,score] = unstringify(p)
+        if na(t1Hit)
+            beNa+=1
+        else if t1Hit == true
+            ts1+=1
+            // if score*100 >= hScore
+            //     tHss+=1
+        if t2Hit == true
+            ts2+=1
+        // if score*100 >= hScore
+        //     tHs+=1
+        //     if na(t1Hit)
+        //         beHsNa+=1
+    tot = bu + be - buNa - beNa
+    s1 = tot>0 ? str.tostring((ts1/tot)*100,"#.##")+"%" : "NA"
+    s2 = tot>0 ? str.tostring((ts2/tot)*100,"#.##")+"%" : "NA"
+    //tHssR = (tHs-buHsNa-beHsNa)>0 ? str.tostring((tHss/(tHs-buHsNa-beHsNa))*100,"#.##")+"%" : "NA"
+    
+    //
+    [str.tostring(tot),str.tostring(bu),str.tostring(be),s1,str.tostring(ts1),s2,str.tostring(ts2)]
+    //[str.tostring(tot),str.tostring(bu),str.tostring(be),s1,str.tostring(ts1),s2,str.tostring(ts2),str.tostring(tHs),tHssR]
+
+getSymbol(t) =>
+    tp = if t==1
+        "gart"
+    else if t==2
+        "bat"
+    else if t==3
+        "bfly"
+    else
+        "crab"
+    symbol(tp)
+
+printStats() =>
+    if barstate.islast
+        int[] types = array.new_int(0)
+        if gartOn
+            array.push(types,1)
+        if batOn
+            array.push(types,2)
+        if bflyOn
+            array.push(types,3)
+        if crabOn
+            array.push(types,4)
+        nR = array.size(types) + 2
+        r = 0
+        t = table.new(position.bottom_left, 8, nR, bgcolor = color.new(color.black,30), border_width = 1)
+        table.cell(t, 0, 0, " ", text_color=color.white, text_halign=text.align_center)
+        table.cell(t, 1, 0, "Total", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        table.cell(t, 2, 0, "Bullish", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        table.cell(t, 3, 0, "Bearish", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        table.cell(t, 4, 0, "Success Rate (T1)", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        //table.cell(t, 5, 0, "T1 Successful", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        table.cell(t, 5, 0, "Success Rate (T2)", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        //table.cell(t, 7, 0, "T2 Successful", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        // table.cell(t, 6, 0, "High Scoring", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        // table.cell(t, 7, 0, "High Scoring Success Rate", text_color=color.white, text_halign=text.align_center,text_size=size.small)
+        for tp in types
+            r+=1
+            //[tot,bu,be,s1,ts1,s2,ts2,hs,hss] = rowValues(tp)
+            [tot,bu,be,s1,ts1,s2,ts2] = rowValues(tp)
+            s1v = str.tonumber(s1)
+            s2v = str.tonumber(s2)
+            cS1 = if s1v >= 80
+                color.green
+            else if s1v < 70
+                color.red
+            else
+                color.white
+            cS2 = if s2v >= 40
+                color.green
+            else if s2v < 30
+                color.red
+            else
+                color.white
+            table.cell(t, 0, r, "   "+getSymbol(tp)+"   ", text_color=color.white, text_halign=text.align_center)
+            table.cell(t, 1, r, tot, text_color=color.white, text_halign=text.align_center)
+            table.cell(t, 2, r, bu, text_color=color.white, text_halign=text.align_center)
+            table.cell(t, 3, r, be, text_color=color.white, text_halign=text.align_center)
+            table.cell(t, 4, r, s1, text_color=cS1, text_halign=text.align_center)
+            //table.cell(t, 5, r, ts1, text_color=color.white, text_halign=text.align_center)
+            table.cell(t, 5, r, s2, text_color=cS2, text_halign=text.align_center)
+            //table.cell(t, 7, r, ts2, text_color=color.white, text_halign=text.align_center)
+            // table.cell(t, 6, r, hs, text_color=c_high, text_halign=text.align_center)
+            // table.cell(t, 7, r, hss, text_color=c_high, text_halign=text.align_center)
+        r+=1
+        keyTxt = "✅ = Success,  ❌ = Failure,  🕝 = Timed out*,  ⏳ = In progress*\n*Not included in Success Rate statistics"
+        table.cell(t, 0, r, keyTxt, text_color=color.white, text_halign=text.align_left, text_size=size.small)
+        table.merge_cells(t,0,r,5,r)
+
+//*** Inc pattern in dev
+// drawIncInProgress() =>
+//     xX = int(array.get(inc,0)), xY = array.get(inc,1)
+//     aX = int(array.get(inc,2)), aY = array.get(inc,3)
+//     bX = int(array.get(inc,4)), bY = array.get(inc,5)
+//     cX = int(array.get(inc,6)), cY = array.get(inc,7)
+//     t = aY > xY ? true : false
+//     h1 = array.get(inc,8) > 0 ? true : false
+//     h2 = array.get(inc,9) > 0 ? true : false
+//     h3 = array.get(inc,10) > 0 ? true : false
+//     h4 = array.get(inc,11) > 0 ? true : false
+//     lcol = if t==true
+//         c_bline
+//     else
+//         c_beline
+//     w = 2
+//     style = line.style_dotted
+//     lbstyle = t==true ? label.style_label_up : label.style_label_down
+
+//     lbsize = size.small
+//     lbCol = color.new(color.gray,60)
+//     lbTxt = "Potential"
+//     if h1==true
+//         lbTxt := lbTxt + " " + symbol("gart")
+//     if h2==true
+//         lbTxt := lbTxt + " " + symbol("bat")
+//     else if h3==true
+//         lbTxt := lbTxt + " " + symbol("bfly")
+//     else if h4==true
+//         lbTxt := lbTxt + " " + symbol("crab")
+
+    // array.push(incL, line.new(xX,xY,aX,aY,color=lcol,width=w,style=style))
+    // array.push(incL, line.new(aX,aY,bX,bY,color=lcol,width=w,style=style))
+    // array.push(incL, line.new(bX,bY,cX,cY,color=lcol,width=w,style=style))
+
+    // array.push(incLab, label.new(xX,xY,"X",size=lbsize,color=lbCol,style=label.style_label_right))
+    // array.push(incLab, label.new(aX,aY,"A",size=lbsize,color=lbCol,style=label.style_label_right))
+    // array.push(incLab, label.new(bX,bY,"B",size=lbsize,color=lbCol,style=label.style_label_right))
+    // array.push(incLab, label.new(cX,cY,"C",size=lbsize,color=lbCol,style=label.style_label_right))
+    // u.print(str.tostring(xX),position.top_center)
+    // u.print(str.tostring(xY),position.top_right)
+    //line.new(cX,cY,dX,dY,color=lcol,width=w,,style=style)
+
+find_pattern(pl,t=true) =>
+    if (t==true and bullOn==true) or (t==false and bearOn==true)
+        [f,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY] = t.pat_xabcd(t,pl)
+        if f == true
+            [h,h1,h2,h3,h4] = t.harmonic_xabcd_validate(xX,xY,aX,aY,bX,bY,cX,cY,dX,dY,pctErr,pctAsym,gartOn,batOn,bflyOn,crabOn)
+            if h == true
+                addValidPattern(t,h1,h2,h3,h4,xX,xY,aX,aY,bX,bY,cX,cY,dX,dY)
+        //     ""
+        // //*** Inc pattern in dev
+        // else if aX >= 0     // if we got a value for point A, we have an incomplete 4-point pattern of the inverse type (i.e. bull => bear)
+        //     [h,h1,h2,h3,h4] = harmonic_xabcd_validateIncomplete(aX,aY,bX,bY,cX,cY,dX,dY,pctErr,pctAsym,gartOn,batOn,bflyOn,crabOn)
+        //     //u.print(str.tostring(array.get(inc,0)))
+        //     if h == true
+        //         //updateIncompletePattern(t==false,h1,h2,h3,h4,aX,aY,bX,bY,cX,cY,dX,dY)
+        //         if array.get(inc,6) != dX or na(array.get(inc,6))
+        //             array.set(inc, 0, aX)
+        //             array.set(inc, 1, aY)
+        //             array.set(inc, 2, bX)
+        //             array.set(inc, 3, bY)
+        //             array.set(inc, 4, cX)
+        //             array.set(inc, 5, cY)
+        //             array.set(inc, 6, dX)
+        //             array.set(inc, 7, dY)
+        //             array.set(inc, 8, h1==true ? 1.0 : 0.0)
+        //             array.set(inc, 9, h2==true ? 1.0 : 0.0)
+        //             array.set(inc, 10, h3==true ? 1.0 : 0.0)
+        //             array.set(inc, 11, h4==true ? 1.0 : 0.0)
+        //     ""
+    
+// Find XABCD patterns of various pivot lengths
+find(bull=true) =>
+    // Could probably do this more efficiently with recursion, but Pine prohibits it. Loops are all
+    // top-tested though, so it's probably not as expensive as it looks.
+    find_pattern(3,bull)
+    find_pattern(4,bull)
+    find_pattern(5,bull)
+    find_pattern(6,bull)
+    find_pattern(7,bull)
+    find_pattern(8,bull)
+    find_pattern(9,bull)
+    find_pattern(10,bull)
+    find_pattern(11,bull)
+    find_pattern(12,bull)
+    find_pattern(13,bull)
+    find_pattern(14,bull)
+    find_pattern(15,bull)
+    find_pattern(16,bull)
+    find_pattern(17,bull)
+    find_pattern(18,bull)
+    find_pattern(19,bull)
+    find_pattern(20,bull)
+    
+//-----------------------------------------
+// Search for a harmonic pattern
+//-----------------------------------------
+
+// update last pattern
+updateLast()
+
+//*** Inc pattern in dev
+// // delete current incomplete pattern if no longer valid / timed out
+// incDx = array.get(inc,6)
+// incXx = array.get(inc,0)
+// if bar_index - (incDx-incXx) <= incDx and incDx > 0
+//     for l in incL
+//         line.delete(l)
+//     array.clear(incL)
+//     for lab in incLab
+//         label.delete(lab)
+//     array.clear(incLab)
+//     inc := array.from(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+// find new patterns
+find()
+find(false)
+
+
+//-----------------------------------------
+// Display results on last bar
+//-----------------------------------------
+draw() =>
+    buS1 = array.size(bullGart)
+    buS2 = array.size(bullBat)
+    buS3 = array.size(bullBfly)
+    buS4 = array.size(bullCrab)
+    if buS1 > 0
+        i = 0
+        for str in bullGart
+            lbl = drawPatternFromStr(str)
+            if not na(lbl)
+                array.set(bullGartL,i,lbl)
+            i+=1
+    if buS2 > 0
+        i = 0
+        for str in bullBat
+            lbl = drawPatternFromStr(str)
+            if not na(lbl)
+                array.set(bullBatL,i,lbl)
+            i+=1
+    if buS3 > 0 
+        i = 0
+        for str in bullBfly
+            lbl = drawPatternFromStr(str)
+            if not na(lbl)
+                array.set(bullBflyL,i,lbl)
+            i+=1
+    if buS4 > 0
+        i = 0
+        for str in bullCrab
+            lbl = drawPatternFromStr(str)
+            if not na(lbl)
+                array.set(bullCrabL,i,lbl)
+            i+=1
+    //
+    beS1 = array.size(bearGart)
+    beS2 = array.size(bearBat)
+    beS3 = array.size(bearBfly)
+    beS4 = array.size(bearCrab)
+    if beS1 > 0
+        i = 0
+        for str in bearGart
+            lbl = drawPatternFromStr(str)
+            if not na(lbl)
+                array.set(bearGartL,i,lbl)
+            i+=1
+    if beS2 > 0
+        i = 0
+        for str in bearBat
+            lbl = drawPatternFromStr(str)
+            if not na(lbl)
+                array.set(bearBatL,i,lbl)
+            i+=1
+    if beS3 > 0
+        i = 0
+        for str in bearBfly
+            lbl = drawPatternFromStr(str)
+            if not na(lbl)
+                array.set(bearBflyL,i,lbl)
+            i+=1
+    if beS4 > 0
+        i = 0
+        for str in bearCrab
+            lbl = drawPatternFromStr(str)
+            if not na(lbl)
+                array.set(bearCrabL,i,lbl)
+            i+=1
+            
+// draw patterns every 500 bars to stay within hist buffer
+// (*drawPattern() is coded to skip anything not within last 500)
+if bar_index%500 == 0
+    draw()
+
+// draw remaining patterns on last bar
+else if barstate.islast == true
+    draw()
+    drawFullInProgress()
+    //*** Inc pattern in dev
+    //drawIncInProgress()
+    printStats()
